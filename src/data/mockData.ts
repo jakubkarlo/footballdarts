@@ -1,129 +1,102 @@
 import { Club, FootballPlayer } from '@/types/game';
+import { supabase } from '@/integrations/supabase/client';
 
+// Popular clubs with API-Football team IDs
 export const mockClubs: Club[] = [
-  { id: '1', name: 'Manchester United', logo: '🔴', country: 'Anglia' },
-  { id: '2', name: 'Real Madrid', logo: '⚪', country: 'Hiszpania' },
-  { id: '3', name: 'Barcelona', logo: '🔵🔴', country: 'Hiszpania' },
-  { id: '4', name: 'Bayern Monachium', logo: '🔴', country: 'Niemcy' },
-  { id: '5', name: 'Liverpool', logo: '🔴', country: 'Anglia' },
-  { id: '6', name: 'Juventus', logo: '⚫⚪', country: 'Włochy' },
-  { id: '7', name: 'PSG', logo: '🔵🔴', country: 'Francja' },
-  { id: '8', name: 'Chelsea', logo: '🔵', country: 'Anglia' },
-  { id: '9', name: 'Manchester City', logo: '🩵', country: 'Anglia' },
-  { id: '10', name: 'AC Milan', logo: '🔴⚫', country: 'Włochy' },
-  { id: '11', name: 'Legia Warszawa', logo: '🟢⚪', country: 'Polska' },
-  { id: '12', name: 'Lech Poznań', logo: '🔵⚪', country: 'Polska' },
+  { id: '33', name: 'Manchester United', logo: 'https://media.api-sports.io/football/teams/33.png', country: 'England' },
+  { id: '541', name: 'Real Madrid', logo: 'https://media.api-sports.io/football/teams/541.png', country: 'Spain' },
+  { id: '529', name: 'Barcelona', logo: 'https://media.api-sports.io/football/teams/529.png', country: 'Spain' },
+  { id: '157', name: 'Bayern Munich', logo: 'https://media.api-sports.io/football/teams/157.png', country: 'Germany' },
+  { id: '40', name: 'Liverpool', logo: 'https://media.api-sports.io/football/teams/40.png', country: 'England' },
+  { id: '496', name: 'Juventus', logo: 'https://media.api-sports.io/football/teams/496.png', country: 'Italy' },
+  { id: '85', name: 'Paris Saint-Germain', logo: 'https://media.api-sports.io/football/teams/85.png', country: 'France' },
+  { id: '49', name: 'Chelsea', logo: 'https://media.api-sports.io/football/teams/49.png', country: 'England' },
+  { id: '50', name: 'Manchester City', logo: 'https://media.api-sports.io/football/teams/50.png', country: 'England' },
+  { id: '489', name: 'AC Milan', logo: 'https://media.api-sports.io/football/teams/489.png', country: 'Italy' },
+  { id: '42', name: 'Arsenal', logo: 'https://media.api-sports.io/football/teams/42.png', country: 'England' },
+  { id: '47', name: 'Tottenham', logo: 'https://media.api-sports.io/football/teams/47.png', country: 'England' },
+  { id: '165', name: 'Borussia Dortmund', logo: 'https://media.api-sports.io/football/teams/165.png', country: 'Germany' },
+  { id: '530', name: 'Atletico Madrid', logo: 'https://media.api-sports.io/football/teams/530.png', country: 'Spain' },
+  { id: '492', name: 'Napoli', logo: 'https://media.api-sports.io/football/teams/492.png', country: 'Italy' },
 ];
 
-// Mock players database - w rzeczywistości będzie z API
-export const mockPlayers: Record<string, FootballPlayer[]> = {
-  '1': [ // Manchester United
-    { id: 'mu1', name: 'Ryan Giggs', appearances: 963, position: 'Pomocnik', nationality: 'Walia' },
-    { id: 'mu2', name: 'Bobby Charlton', appearances: 758, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'mu3', name: 'Paul Scholes', appearances: 718, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'mu4', name: 'Wayne Rooney', appearances: 559, position: 'Napastnik', nationality: 'Anglia' },
-    { id: 'mu5', name: 'Gary Neville', appearances: 602, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'mu6', name: 'Denis Irwin', appearances: 529, position: 'Obrońca', nationality: 'Irlandia' },
-    { id: 'mu7', name: 'David Beckham', appearances: 394, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'mu8', name: 'Cristiano Ronaldo', appearances: 346, position: 'Napastnik', nationality: 'Portugalia' },
-    { id: 'mu9', name: 'Eric Cantona', appearances: 185, position: 'Napastnik', nationality: 'Francja' },
-    { id: 'mu10', name: 'Rio Ferdinand', appearances: 455, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'mu11', name: 'Bryan Robson', appearances: 461, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'mu12', name: 'Marcus Rashford', appearances: 350, position: 'Napastnik', nationality: 'Anglia' },
-    { id: 'mu13', name: 'Bruno Fernandes', appearances: 180, position: 'Pomocnik', nationality: 'Portugalia' },
-    { id: 'mu14', name: 'Harry Maguire', appearances: 160, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'mu15', name: 'Casemiro', appearances: 75, position: 'Pomocnik', nationality: 'Brazylia' },
+// Mock players database as fallback
+const mockPlayers: Record<string, FootballPlayer[]> = {
+  '33': [ // Manchester United
+    { id: 'mu1', name: 'Ryan Giggs', appearances: 168, position: 'Midfielder', nationality: 'Wales' },
+    { id: 'mu2', name: 'Wayne Rooney', appearances: 156, position: 'Forward', nationality: 'England' },
+    { id: 'mu3', name: 'Paul Scholes', appearances: 155, position: 'Midfielder', nationality: 'England' },
+    { id: 'mu4', name: 'David Beckham', appearances: 128, position: 'Midfielder', nationality: 'England' },
+    { id: 'mu5', name: 'Cristiano Ronaldo', appearances: 145, position: 'Forward', nationality: 'Portugal' },
+    { id: 'mu6', name: 'Marcus Rashford', appearances: 95, position: 'Forward', nationality: 'England' },
+    { id: 'mu7', name: 'Bruno Fernandes', appearances: 88, position: 'Midfielder', nationality: 'Portugal' },
   ],
-  '2': [ // Real Madrid
-    { id: 'rm1', name: 'Raul Gonzalez', appearances: 741, position: 'Napastnik', nationality: 'Hiszpania' },
-    { id: 'rm2', name: 'Iker Casillas', appearances: 725, position: 'Bramkarz', nationality: 'Hiszpania' },
-    { id: 'rm3', name: 'Sergio Ramos', appearances: 671, position: 'Obrońca', nationality: 'Hiszpania' },
-    { id: 'rm4', name: 'Karim Benzema', appearances: 648, position: 'Napastnik', nationality: 'Francja' },
-    { id: 'rm5', name: 'Marcelo', appearances: 546, position: 'Obrońca', nationality: 'Brazylia' },
-    { id: 'rm6', name: 'Luka Modric', appearances: 480, position: 'Pomocnik', nationality: 'Chorwacja' },
-    { id: 'rm7', name: 'Cristiano Ronaldo', appearances: 438, position: 'Napastnik', nationality: 'Portugalia' },
-    { id: 'rm8', name: 'Zinedine Zidane', appearances: 227, position: 'Pomocnik', nationality: 'Francja' },
-    { id: 'rm9', name: 'Toni Kroos', appearances: 465, position: 'Pomocnik', nationality: 'Niemcy' },
-    { id: 'rm10', name: 'Roberto Carlos', appearances: 527, position: 'Obrońca', nationality: 'Brazylia' },
-    { id: 'rm11', name: 'Vinicius Jr', appearances: 250, position: 'Napastnik', nationality: 'Brazylia' },
-    { id: 'rm12', name: 'Jude Bellingham', appearances: 50, position: 'Pomocnik', nationality: 'Anglia' },
+  '541': [ // Real Madrid
+    { id: 'rm1', name: 'Cristiano Ronaldo', appearances: 150, position: 'Forward', nationality: 'Portugal' },
+    { id: 'rm2', name: 'Karim Benzema', appearances: 165, position: 'Forward', nationality: 'France' },
+    { id: 'rm3', name: 'Sergio Ramos', appearances: 172, position: 'Defender', nationality: 'Spain' },
+    { id: 'rm4', name: 'Luka Modric', appearances: 148, position: 'Midfielder', nationality: 'Croatia' },
+    { id: 'rm5', name: 'Vinicius Jr', appearances: 78, position: 'Forward', nationality: 'Brazil' },
+    { id: 'rm6', name: 'Jude Bellingham', appearances: 45, position: 'Midfielder', nationality: 'England' },
   ],
-  '3': [ // Barcelona
-    { id: 'bc1', name: 'Lionel Messi', appearances: 778, position: 'Napastnik', nationality: 'Argentyna' },
-    { id: 'bc2', name: 'Xavi Hernandez', appearances: 767, position: 'Pomocnik', nationality: 'Hiszpania' },
-    { id: 'bc3', name: 'Andres Iniesta', appearances: 674, position: 'Pomocnik', nationality: 'Hiszpania' },
-    { id: 'bc4', name: 'Sergio Busquets', appearances: 722, position: 'Pomocnik', nationality: 'Hiszpania' },
-    { id: 'bc5', name: 'Gerard Pique', appearances: 616, position: 'Obrońca', nationality: 'Hiszpania' },
-    { id: 'bc6', name: 'Carles Puyol', appearances: 593, position: 'Obrońca', nationality: 'Hiszpania' },
-    { id: 'bc7', name: 'Dani Alves', appearances: 408, position: 'Obrońca', nationality: 'Brazylia' },
-    { id: 'bc8', name: 'Neymar Jr', appearances: 186, position: 'Napastnik', nationality: 'Brazylia' },
-    { id: 'bc9', name: 'Luis Suarez', appearances: 283, position: 'Napastnik', nationality: 'Urugwaj' },
-    { id: 'bc10', name: 'Pedri', appearances: 150, position: 'Pomocnik', nationality: 'Hiszpania' },
-    { id: 'bc11', name: 'Robert Lewandowski', appearances: 95, position: 'Napastnik', nationality: 'Polska' },
-  ],
-  '4': [ // Bayern
-    { id: 'by1', name: 'Thomas Muller', appearances: 710, position: 'Napastnik', nationality: 'Niemcy' },
-    { id: 'by2', name: 'Sepp Maier', appearances: 700, position: 'Bramkarz', nationality: 'Niemcy' },
-    { id: 'by3', name: 'Gerd Muller', appearances: 566, position: 'Napastnik', nationality: 'Niemcy' },
-    { id: 'by4', name: 'Manuel Neuer', appearances: 529, position: 'Bramkarz', nationality: 'Niemcy' },
-    { id: 'by5', name: 'Robert Lewandowski', appearances: 375, position: 'Napastnik', nationality: 'Polska' },
-    { id: 'by6', name: 'Philipp Lahm', appearances: 517, position: 'Obrońca', nationality: 'Niemcy' },
-    { id: 'by7', name: 'Bastian Schweinsteiger', appearances: 500, position: 'Pomocnik', nationality: 'Niemcy' },
-    { id: 'by8', name: 'Joshua Kimmich', appearances: 350, position: 'Pomocnik', nationality: 'Niemcy' },
-    { id: 'by9', name: 'Franck Ribery', appearances: 425, position: 'Pomocnik', nationality: 'Francja' },
-    { id: 'by10', name: 'Arjen Robben', appearances: 309, position: 'Pomocnik', nationality: 'Holandia' },
-  ],
-  '5': [ // Liverpool
-    { id: 'lp1', name: 'Ian Callaghan', appearances: 857, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'lp2', name: 'Jamie Carragher', appearances: 737, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'lp3', name: 'Steven Gerrard', appearances: 710, position: 'Pomocnik', nationality: 'Anglia' },
-    { id: 'lp4', name: 'Emlyn Hughes', appearances: 665, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'lp5', name: 'Mohamed Salah', appearances: 350, position: 'Napastnik', nationality: 'Egipt' },
-    { id: 'lp6', name: 'Virgil van Dijk', appearances: 280, position: 'Obrońca', nationality: 'Holandia' },
-    { id: 'lp7', name: 'Sadio Mane', appearances: 269, position: 'Napastnik', nationality: 'Senegal' },
-    { id: 'lp8', name: 'Roberto Firmino', appearances: 362, position: 'Napastnik', nationality: 'Brazylia' },
-    { id: 'lp9', name: 'Trent Alexander-Arnold', appearances: 310, position: 'Obrońca', nationality: 'Anglia' },
-    { id: 'lp10', name: 'Kenny Dalglish', appearances: 515, position: 'Napastnik', nationality: 'Szkocja' },
-  ],
-  '11': [ // Legia Warszawa
-    { id: 'lg1', name: 'Lucjan Brychczy', appearances: 452, position: 'Napastnik', nationality: 'Polska' },
-    { id: 'lg2', name: 'Kazimierz Deyna', appearances: 340, position: 'Pomocnik', nationality: 'Polska' },
-    { id: 'lg3', name: 'Artur Boruc', appearances: 200, position: 'Bramkarz', nationality: 'Polska' },
-    { id: 'lg4', name: 'Jakub Kosecki', appearances: 180, position: 'Pomocnik', nationality: 'Polska' },
-    { id: 'lg5', name: 'Bartosz Kapustka', appearances: 95, position: 'Pomocnik', nationality: 'Polska' },
-    { id: 'lg6', name: 'Josue', appearances: 160, position: 'Pomocnik', nationality: 'Portugalia' },
-    { id: 'lg7', name: 'Artur Jędrzejczyk', appearances: 230, position: 'Obrońca', nationality: 'Polska' },
-    { id: 'lg8', name: 'Miroslav Radovic', appearances: 175, position: 'Pomocnik', nationality: 'Serbia' },
-  ],
-  '12': [ // Lech Poznań
-    { id: 'lch1', name: 'Piotr Reiss', appearances: 420, position: 'Pomocnik', nationality: 'Polska' },
-    { id: 'lch2', name: 'Robert Lewandowski', appearances: 58, position: 'Napastnik', nationality: 'Polska' },
-    { id: 'lch3', name: 'Bartosz Bosacki', appearances: 280, position: 'Obrońca', nationality: 'Polska' },
-    { id: 'lch4', name: 'Semir Stilic', appearances: 165, position: 'Pomocnik', nationality: 'Bośnia' },
-    { id: 'lch5', name: 'Mikael Ishak', appearances: 145, position: 'Napastnik', nationality: 'Szwecja' },
-    { id: 'lch6', name: 'Jakub Moder', appearances: 70, position: 'Pomocnik', nationality: 'Polska' },
-    { id: 'lch7', name: 'Antonio Colak', appearances: 55, position: 'Napastnik', nationality: 'Chorwacja' },
+  '40': [ // Liverpool
+    { id: 'lp1', name: 'Steven Gerrard', appearances: 165, position: 'Midfielder', nationality: 'England' },
+    { id: 'lp2', name: 'Mohamed Salah', appearances: 142, position: 'Forward', nationality: 'Egypt' },
+    { id: 'lp3', name: 'Virgil van Dijk', appearances: 110, position: 'Defender', nationality: 'Netherlands' },
+    { id: 'lp4', name: 'Sadio Mane', appearances: 95, position: 'Forward', nationality: 'Senegal' },
   ],
 };
 
-// Default players for clubs without specific data
 const defaultPlayers: FootballPlayer[] = [
-  { id: 'def1', name: 'Nieznany Piłkarz 1', appearances: 150, position: 'Pomocnik', nationality: 'Nieznany' },
-  { id: 'def2', name: 'Nieznany Piłkarz 2', appearances: 100, position: 'Obrońca', nationality: 'Nieznany' },
-  { id: 'def3', name: 'Nieznany Piłkarz 3', appearances: 75, position: 'Napastnik', nationality: 'Nieznany' },
+  { id: 'def1', name: 'Unknown Player 1', appearances: 75, position: 'Midfielder', nationality: 'Unknown' },
+  { id: 'def2', name: 'Unknown Player 2', appearances: 50, position: 'Defender', nationality: 'Unknown' },
 ];
 
 export const getPlayersForClub = (clubId: string): FootballPlayer[] => {
   return mockPlayers[clubId] || defaultPlayers;
 };
 
-// Simulate API call with delay
+// API call to search player
 export const searchPlayer = async (
   clubId: string,
   playerName: string
 ): Promise<FootballPlayer | null> => {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 500));
+  try {
+    const { data, error } = await supabase.functions.invoke('search-player', {
+      body: { teamId: clubId, playerName },
+    });
+
+    if (error) {
+      console.error('Edge function error:', error);
+      // Fallback to mock data
+      return searchPlayerMock(clubId, playerName);
+    }
+
+    if (data.player) {
+      return {
+        id: data.player.id.toString(),
+        name: data.player.name,
+        appearances: data.player.appearances,
+        position: data.player.position,
+        nationality: data.player.nationality,
+        photo: data.player.photo,
+      };
+    }
+
+    // Fallback to mock if not found in API
+    return searchPlayerMock(clubId, playerName);
+  } catch (error) {
+    console.error('Error searching player:', error);
+    return searchPlayerMock(clubId, playerName);
+  }
+};
+
+// Fallback mock search
+const searchPlayerMock = async (
+  clubId: string,
+  playerName: string
+): Promise<FootballPlayer | null> => {
+  await new Promise((resolve) => setTimeout(resolve, 300));
   
   const players = getPlayersForClub(clubId);
   const normalizedSearch = playerName.toLowerCase().trim();
@@ -137,7 +110,6 @@ export const searchPlayer = async (
   return found || null;
 };
 
-// Get random club
 export const getRandomClub = (): Club => {
   const randomIndex = Math.floor(Math.random() * mockClubs.length);
   return mockClubs[randomIndex];

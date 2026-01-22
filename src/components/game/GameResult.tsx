@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { GameState } from '@/types/game';
 import { ClubBadge } from './ClubBadge';
-import { Trophy, RotateCcw, Share2 } from 'lucide-react';
+import { Trophy, RotateCcw, Share2, Medal, Target } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useEffect } from 'react';
 
@@ -28,22 +28,22 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
   }, [winner]);
 
   const getResultMessage = () => {
-    if (!winner) return 'Gra zakończona!';
-    if (winner.score === 0) return 'PERFEKCYJNIE!';
-    if (winner.score <= 10) return 'ŚWIETNY WYNIK!';
-    if (winner.score <= 50) return 'DOBRY WYNIK!';
-    return 'GRA ZAKOŃCZONA';
+    if (!winner) return 'Game Over!';
+    if (winner.score === 0) return 'PERFECT FINISH!';
+    if (winner.score <= 10) return 'EXCELLENT!';
+    if (winner.score <= 50) return 'GREAT GAME!';
+    return 'GAME OVER';
   };
 
   const getResultColor = () => {
     if (!winner) return 'text-foreground';
-    if (winner.score === 0) return 'text-primary text-glow-gold';
-    if (winner.score <= 20) return 'text-secondary text-glow-green';
+    if (winner.score === 0) return 'text-primary';
+    if (winner.score <= 20) return 'text-secondary';
     return 'text-foreground';
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
       {/* Trophy icon */}
       <motion.div
         className="mb-8"
@@ -51,8 +51,8 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
       >
-        <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center glow-gold">
-          <Trophy className="w-12 h-12 text-primary" />
+        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center border-4 border-primary/50 shadow-2xl">
+          <Trophy className="w-14 h-14 text-primary drop-shadow-lg" />
         </div>
       </motion.div>
 
@@ -75,18 +75,20 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
           transition={{ delay: 0.4 }}
         >
           {is1v1 && (
-            <p className="text-xl text-muted-foreground mb-2">
-              Zwycięzca: <span className="text-foreground font-bold">{winner.name}</span>
+            <p className="text-xl text-muted-foreground mb-2 flex items-center justify-center gap-2">
+              <Medal className="w-5 h-5 text-primary" />
+              Winner: <span className="text-foreground font-bold">{winner.name}</span>
             </p>
           )}
-          <p className="text-muted-foreground">
-            Wynik końcowy:
+          <p className="text-muted-foreground flex items-center justify-center gap-2">
+            <Target className="w-4 h-4" />
+            Final Score:
           </p>
-          <p className="text-6xl font-display font-bold text-primary mt-2">
+          <p className="text-7xl font-display font-bold text-primary mt-2">
             {winner.score}
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            {winner.throws.length} rzutów
+            {winner.throws.length} throws
           </p>
         </motion.div>
       )}
@@ -106,13 +108,13 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
       {/* All players scores (for 1v1) */}
       {is1v1 && (
         <motion.div
-          className="w-full max-w-md mb-8 bg-card rounded-xl border border-border p-4"
+          className="w-full max-w-md mb-8 bg-card/90 backdrop-blur-sm rounded-xl border border-border/50 p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
           <h3 className="text-sm font-medium text-muted-foreground mb-3">
-            Wszystkie wyniki:
+            Final Standings:
           </h3>
           <div className="space-y-3">
             {gameState.players
@@ -123,7 +125,9 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-bold">
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                      index === 0 ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                    }`}>
                       {index + 1}
                     </span>
                     <span className="font-medium">{player.name}</span>
@@ -133,7 +137,7 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
                       {player.score}
                     </span>
                     <span className="text-xs text-muted-foreground ml-2">
-                      ({player.throws.length} rzutów)
+                      ({player.throws.length} throws)
                     </span>
                   </div>
                 </div>
@@ -145,21 +149,21 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
       {/* Throw history */}
       {winner && winner.throws.length > 0 && (
         <motion.div
-          className="w-full max-w-md mb-8 bg-card rounded-xl border border-border p-4"
+          className="w-full max-w-md mb-8 bg-card/90 backdrop-blur-sm rounded-xl border border-border/50 p-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
         >
           <h3 className="text-sm font-medium text-muted-foreground mb-3">
-            Twoje rzuty:
+            Your Throws:
           </h3>
           <div className="flex flex-wrap gap-2">
             {winner.throws.map((t, i) => (
               <span
                 key={i}
-                className="px-3 py-1 bg-muted rounded-full text-sm"
+                className="px-3 py-1.5 bg-muted/80 rounded-full text-sm border border-border/50"
               >
-                {t.playerName} ({t.appearances})
+                {t.playerName} <span className="text-primary font-bold">({t.appearances})</span>
               </span>
             ))}
           </div>
@@ -175,26 +179,25 @@ export const GameResult = ({ gameState, onPlayAgain }: GameResultProps) => {
       >
         <Button
           onClick={onPlayAgain}
-          className="gap-2 px-8 py-3 bg-primary text-primary-foreground hover:bg-primary/90"
+          className="gap-2 px-8 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 rounded-xl shadow-lg"
         >
           <RotateCcw className="w-4 h-4" />
-          Zagraj Ponownie
+          Play Again
         </Button>
         <Button
           variant="outline"
-          className="gap-2 border-border"
+          className="gap-2 border-border/50 rounded-xl"
           onClick={() => {
-            // Share functionality placeholder
             if (navigator.share) {
               navigator.share({
-                title: 'Piłkarski Dart',
-                text: `Mój wynik: ${winner?.score}! Czy możesz mnie pokonać?`,
+                title: 'Football Darts',
+                text: `My score: ${winner?.score}! Can you beat me?`,
               });
             }
           }}
         >
           <Share2 className="w-4 h-4" />
-          Udostępnij
+          Share
         </Button>
       </motion.div>
     </div>

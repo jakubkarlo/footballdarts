@@ -20,6 +20,7 @@ export interface FootballPlayer {
   appearances: number;
   position: string;
   nationality: string;
+  photo?: string;
 }
 
 export interface Throw {
@@ -27,6 +28,7 @@ export interface Throw {
   playerName: string;
   appearances: number;
   timestamp: number;
+  photo?: string;
 }
 
 export interface GamePlayer {

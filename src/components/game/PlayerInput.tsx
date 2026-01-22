@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Send, Loader2, X } from 'lucide-react';
+import { Search, Send, Loader2, X, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PlayerInputProps {
@@ -16,7 +16,7 @@ export const PlayerInput = ({
   onSubmit, 
   isLoading, 
   disabled,
-  placeholder = "Wpisz nazwę piłkarza..." 
+  placeholder = "Enter player name..." 
 }: PlayerInputProps) => {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,10 +47,10 @@ export const PlayerInput = ({
             placeholder={placeholder}
             disabled={isLoading || disabled}
             className={cn(
-              'pl-12 pr-10 h-14 text-lg bg-card border-2 border-border',
+              'pl-12 pr-10 h-14 text-lg bg-card/90 backdrop-blur-sm border-2 border-border/50',
               'focus:border-primary focus:ring-2 focus:ring-primary/20',
               'placeholder:text-muted-foreground/50',
-              'transition-all duration-200'
+              'transition-all duration-200 rounded-xl'
             )}
           />
           <AnimatePresence>
@@ -73,15 +73,15 @@ export const PlayerInput = ({
           type="submit"
           disabled={!value.trim() || isLoading || disabled}
           className={cn(
-            'h-14 px-6 bg-primary text-primary-foreground',
-            'hover:bg-primary/90 disabled:opacity-50',
-            'transition-all duration-200'
+            'h-14 px-6 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl',
+            'hover:from-primary/90 hover:to-primary/70 disabled:opacity-50',
+            'transition-all duration-200 shadow-lg shadow-primary/20'
           )}
         >
           {isLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <Send className="w-5 h-5" />
+            <Target className="w-5 h-5" />
           )}
         </Button>
       </div>
