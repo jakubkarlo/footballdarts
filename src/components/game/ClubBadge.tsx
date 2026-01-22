@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Club } from '@/types/game';
+import { cn } from '@/lib/utils';
 
 interface ClubBadgeProps {
   club: Club;
@@ -8,31 +9,46 @@ interface ClubBadgeProps {
 
 export const ClubBadge = ({ club, size = 'md' }: ClubBadgeProps) => {
   const sizeClasses = {
-    sm: 'w-12 h-12 text-xl',
-    md: 'w-20 h-20 text-3xl',
-    lg: 'w-32 h-32 text-5xl',
+    sm: 'p-2 gap-2',
+    md: 'p-4 gap-3',
+    lg: 'p-6 gap-4',
+  };
+
+  const imgSizes = {
+    sm: 'w-8 h-8',
+    md: 'w-14 h-14',
+    lg: 'w-20 h-20',
+  };
+
+  const textSizes = {
+    sm: 'text-sm',
+    md: 'text-lg',
+    lg: 'text-2xl',
   };
 
   return (
     <motion.div
-      className="flex flex-col items-center gap-2"
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 300 }}
+      className={cn(
+        'flex items-center rounded-xl bg-card/90 backdrop-blur-sm border border-border/50 shadow-lg',
+        sizeClasses[size]
+      )}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ scale: 1.02 }}
     >
-      <div
-        className={`
-          ${sizeClasses[size]}
-          flex items-center justify-center
-          bg-card border-2 border-border rounded-full
-          shadow-lg
-        `}
-      >
-        <span>{club.logo}</span>
-      </div>
-      <div className="text-center">
-        <p className="font-display font-bold text-foreground">{club.name}</p>
-        <p className="text-xs text-muted-foreground">{club.country}</p>
+      <img 
+        src={club.logo} 
+        alt={club.name}
+        className={cn('object-contain', imgSizes[size])}
+        onError={(e) => {
+          e.currentTarget.src = '/placeholder.svg';
+        }}
+      />
+      <div>
+        <p className={cn('font-display font-bold text-foreground', textSizes[size])}>
+          {club.name}
+        </p>
+        <p className="text-sm text-muted-foreground">{club.country}</p>
       </div>
     </motion.div>
   );

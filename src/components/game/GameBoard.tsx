@@ -7,7 +7,7 @@ import { PlayerInput } from './PlayerInput';
 import { ThrowResult } from './ThrowResult';
 import { ThrowHistory } from './ThrowHistory';
 import { ClubBadge } from './ClubBadge';
-import { RotateCcw, Flag, ArrowRight, Info } from 'lucide-react';
+import { RotateCcw, Flag, ArrowRight, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameBoardProps {
@@ -38,7 +38,7 @@ export const GameBoard = ({
   const is1v1 = gameState.mode !== 'solo';
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-6">
+    <div className="min-h-screen flex flex-col p-4 md:p-6 bg-stadium-gradient relative">
       {/* Header */}
       <motion.div
         className="flex items-center justify-between mb-6"
@@ -48,10 +48,10 @@ export const GameBoard = ({
         <Button
           variant="ghost"
           onClick={onReset}
-          className="gap-2 text-muted-foreground hover:text-foreground"
+          className="gap-2 text-muted-foreground hover:text-foreground hover:bg-card/50"
         >
           <RotateCcw className="w-4 h-4" />
-          Nowa Gra
+          New Game
         </Button>
 
         {gameState.club && <ClubBadge club={gameState.club} size="sm" />}
@@ -59,27 +59,35 @@ export const GameBoard = ({
         <Button
           variant="ghost"
           onClick={() => setShowInfo(!showInfo)}
-          className="gap-2 text-muted-foreground hover:text-foreground"
+          className="gap-2 text-muted-foreground hover:text-foreground hover:bg-card/50"
         >
           <Info className="w-4 h-4" />
-          Zasady
+          Rules
         </Button>
       </motion.div>
 
       {/* Rules info panel */}
       {showInfo && (
         <motion.div
-          className="mb-6 p-4 bg-card border border-border rounded-lg"
+          className="mb-6 p-4 bg-card/90 backdrop-blur-sm border border-border rounded-xl relative"
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
         >
-          <h3 className="font-display font-bold mb-2">Zasady gry:</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowInfo(false)}
+            className="absolute top-2 right-2 h-8 w-8 p-0"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+          <h3 className="font-display font-bold mb-2 text-primary">Game Rules:</h3>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Maksymalna wartość rzutu: 180 występów</li>
-            <li>• Zejście poniżej zera = BUST (strata ruchu)</li>
-            <li>• Przekroczenie 180 = utrata rzutu {gameState.mode === '1v1-one-shot' && '(dyskwalifikacja)'}</li>
-            <li>• Ty decydujesz kiedy kończysz - im bliżej zera, tym lepiej!</li>
+            <li>• Max throw value: 180 appearances</li>
+            <li>• Going below zero = BUST (lose turn)</li>
+            <li>• Exceeding 180 = invalid throw {gameState.mode === '1v1-one-shot' && '(disqualified)'}</li>
+            <li>• You decide when to finish - closer to zero wins!</li>
           </ul>
         </motion.div>
       )}
@@ -90,10 +98,10 @@ export const GameBoard = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <span className="px-3 py-1 bg-muted rounded-full text-sm text-muted-foreground">
-          {gameState.mode === 'solo' && 'Tryb Solo'}
-          {gameState.mode === '1v1-turns' && 'Tryb 1v1 - Tury'}
-          {gameState.mode === '1v1-one-shot' && 'Tryb 1v1 - Na Strzała'}
+        <span className="px-4 py-1.5 bg-card/80 backdrop-blur-sm rounded-full text-sm text-muted-foreground border border-border/50">
+          {gameState.mode === 'solo' && 'Solo Mode'}
+          {gameState.mode === '1v1-turns' && '1v1 - Turns'}
+          {gameState.mode === '1v1-one-shot' && '1v1 - Blitz Mode'}
         </span>
       </motion.div>
 
@@ -121,17 +129,17 @@ export const GameBoard = ({
       </div>
 
       {/* Throw result */}
-      <div className="mb-6">
+      <div className="mb-6 max-w-md mx-auto w-full">
         <ThrowResult result={lastThrowResult} />
       </div>
 
       {/* Player input */}
-      <div className="mb-6">
+      <div className="mb-6 max-w-md mx-auto w-full">
         <PlayerInput
           onSubmit={onThrow}
           isLoading={isLoading}
           disabled={currentPlayer.isBusted || currentPlayer.isFinished}
-          placeholder={`Piłkarz ${gameState.club?.name || ''}...`}
+          placeholder={`Search player from ${gameState.club?.name || ''}...`}
         />
       </div>
 
@@ -146,9 +154,9 @@ export const GameBoard = ({
           <Button
             onClick={onEndTurn}
             variant="outline"
-            className="gap-2 border-primary text-primary hover:bg-primary/10"
+            className="gap-2 border-primary text-primary hover:bg-primary/10 rounded-xl"
           >
-            Zakończ Turę
+            End Turn
             <ArrowRight className="w-4 h-4" />
           </Button>
         )}
@@ -156,22 +164,22 @@ export const GameBoard = ({
         <Button
           onClick={onFinish}
           disabled={currentPlayer.isBusted}
-          className="gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/90"
+          className="gap-2 bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 rounded-xl"
         >
           <Flag className="w-4 h-4" />
-          Zakończ Grę
+          Finish Game
         </Button>
       </motion.div>
 
       {/* Throw history */}
       <motion.div
-        className="max-w-md mx-auto w-full bg-card rounded-xl border border-border p-4"
+        className="max-w-md mx-auto w-full bg-card/90 backdrop-blur-sm rounded-xl border border-border/50 p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
         <h3 className="text-sm font-medium text-muted-foreground mb-3">
-          Historia rzutów - {currentPlayer.name}
+          Throw History - {currentPlayer.name}
         </h3>
         <ThrowHistory throws={currentPlayer.throws} />
       </motion.div>

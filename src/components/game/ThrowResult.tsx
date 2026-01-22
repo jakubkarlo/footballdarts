@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, HelpCircle, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ThrowResultProps {
@@ -47,7 +47,7 @@ export const ThrowResult = ({ result }: ThrowResultProps) => {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         className={cn(
-          'flex items-center gap-3 p-4 rounded-lg border-2',
+          'flex items-center gap-3 p-4 rounded-xl border-2 backdrop-blur-sm',
           getStyles(),
           result.type === 'success' && 'dart-throw',
           result.type === 'bust' && 'shake'
@@ -57,8 +57,9 @@ export const ThrowResult = ({ result }: ThrowResultProps) => {
         <div className="flex-1">
           <p className="font-medium">{result.message}</p>
           {result.value && (
-            <p className="text-sm opacity-80">
-              Wartość: <span className="font-bold">{result.value}</span> występów
+            <p className="text-sm opacity-80 flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              Value: <span className="font-bold">{result.value}</span> appearances
             </p>
           )}
         </div>

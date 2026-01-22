@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Club, GameMode } from '@/types/game';
 import { mockClubs, getRandomClub } from '@/data/mockData';
 import { ClubBadge } from './ClubBadge';
-import { Shuffle, ArrowRight, ArrowLeft, User } from 'lucide-react';
+import { Shuffle, ArrowRight, ArrowLeft, User, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -25,7 +25,7 @@ export const GameSetup = ({
   onBack,
 }: GameSetupProps) => {
   const [playerNames, setPlayerNames] = useState<string[]>(
-    mode === 'solo' ? ['Gracz'] : ['Gracz 1', 'Gracz 2']
+    mode === 'solo' ? ['Player'] : ['Player 1', 'Player 2']
   );
   const [step, setStep] = useState<'club' | 'players'>('club');
 
@@ -42,7 +42,7 @@ export const GameSetup = ({
   const canProceed = selectedClub && playerNames.every((name) => name.trim());
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
       {/* Back button */}
       <motion.div
         className="absolute top-6 left-6"
@@ -52,10 +52,10 @@ export const GameSetup = ({
         <Button
           variant="ghost"
           onClick={step === 'club' ? onBack : () => setStep('club')}
-          className="gap-2 text-muted-foreground hover:text-foreground"
+          className="gap-2 text-muted-foreground hover:text-foreground hover:bg-card/50"
         >
           <ArrowLeft className="w-4 h-4" />
-          Wróć
+          Back
         </Button>
       </motion.div>
 
@@ -67,11 +67,14 @@ export const GameSetup = ({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-4">
+              <Shield className="w-8 h-8 text-primary" />
+            </div>
             <h1 className="text-3xl font-display font-bold text-foreground mb-2">
-              Wybierz Klub
+              Choose Your Club
             </h1>
             <p className="text-muted-foreground">
-              Wybierz klub z listy lub wylosuj
+              Select a club or randomize
             </p>
           </motion.div>
 
@@ -85,10 +88,10 @@ export const GameSetup = ({
             <Button
               onClick={handleRandomClub}
               variant="outline"
-              className="gap-2 px-6 py-3 border-primary text-primary hover:bg-primary/10"
+              className="gap-2 px-6 py-3 border-primary text-primary hover:bg-primary/10 rounded-xl"
             >
               <Shuffle className="w-5 h-5" />
-              Losuj Klub
+              Random Club
             </Button>
           </motion.div>
 
@@ -110,23 +113,30 @@ export const GameSetup = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <ScrollArea className="h-64 w-full">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
+            <ScrollArea className="h-72 w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 p-1">
                 {mockClubs.map((club) => (
                   <motion.button
                     key={club.id}
                     onClick={() => onClubSelect(club)}
                     className={cn(
-                      'p-4 rounded-lg border-2 transition-all duration-200 text-center',
+                      'p-4 rounded-xl border-2 transition-all duration-200 text-center bg-card/80 backdrop-blur-sm',
                       selectedClub?.id === club.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border bg-card hover:border-primary/50'
+                        ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                        : 'border-border/50 hover:border-primary/50'
                     )}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <span className="text-2xl mb-2 block">{club.logo}</span>
-                    <span className="text-sm font-medium text-foreground block truncate">
+                    <img 
+                      src={club.logo} 
+                      alt={club.name}
+                      className="w-12 h-12 mx-auto mb-2 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder.svg';
+                      }}
+                    />
+                    <span className="text-xs font-medium text-foreground block truncate">
                       {club.name}
                     </span>
                     <span className="text-xs text-muted-foreground">
@@ -147,9 +157,9 @@ export const GameSetup = ({
             >
               <Button
                 onClick={() => setStep('players')}
-                className="gap-2 px-8 py-3 bg-primary text-primary-foreground"
+                className="gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl"
               >
-                Dalej
+                Next
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </motion.div>
@@ -163,11 +173,14 @@ export const GameSetup = ({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary/20 mb-4">
+              <User className="w-8 h-8 text-secondary" />
+            </div>
             <h1 className="text-3xl font-display font-bold text-foreground mb-2">
-              {mode === 'solo' ? 'Twoja Nazwa' : 'Nazwy Graczy'}
+              {mode === 'solo' ? 'Your Name' : 'Player Names'}
             </h1>
             <p className="text-muted-foreground">
-              Podaj {mode === 'solo' ? 'swoją nazwę' : 'nazwy graczy'}
+              Enter {mode === 'solo' ? 'your name' : 'player names'}
             </p>
           </motion.div>
 
@@ -195,8 +208,8 @@ export const GameSetup = ({
                 <Input
                   value={name}
                   onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-                  placeholder={`Gracz ${index + 1}`}
-                  className="pl-12 h-14 text-lg bg-card border-2 border-border focus:border-primary"
+                  placeholder={`Player ${index + 1}`}
+                  className="pl-12 h-14 text-lg bg-card/80 backdrop-blur-sm border-2 border-border/50 focus:border-primary rounded-xl"
                 />
               </div>
             ))}
@@ -212,7 +225,7 @@ export const GameSetup = ({
             <Button
               onClick={() => onStart(playerNames)}
               disabled={!canProceed}
-              className="gap-2 px-12 py-6 text-xl font-display font-bold bg-secondary text-secondary-foreground hover:bg-secondary/90 glow-green disabled:opacity-50"
+              className="gap-2 px-12 py-6 text-xl font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 rounded-2xl shadow-xl shadow-secondary/30"
             >
               START
               <ArrowRight className="w-5 h-5" />

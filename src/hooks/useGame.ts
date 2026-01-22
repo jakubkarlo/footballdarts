@@ -14,6 +14,7 @@ const createPlayer = (id: string, name: string, startingScore: StartingScore): G
   isFinished: false,
 });
 
+
 export const useGame = () => {
   const [gameState, setGameState] = useState<GameState>({
     mode: 'solo',
@@ -68,7 +69,7 @@ export const useGame = () => {
     message: string;
   }> => {
     if (!gameState.club) {
-      return { success: false, message: 'Nie wybrano klubu!' };
+      return { success: false, message: 'No club selected!' };
     }
 
     setIsLoading(true);
@@ -79,10 +80,10 @@ export const useGame = () => {
       if (!footballPlayer) {
         setLastThrowResult({
           type: 'invalid',
-          message: `Nie znaleziono piłkarza: ${playerName}`,
+          message: `Player not found: ${playerName}`,
         });
         setIsLoading(false);
-        return { success: false, message: `Nie znaleziono piłkarza: ${playerName}` };
+        return { success: false, message: `Player not found: ${playerName}` };
       }
 
       const appearances = footballPlayer.appearances;
@@ -91,7 +92,7 @@ export const useGame = () => {
       if (appearances > MAX_THROW) {
         setLastThrowResult({
           type: 'over',
-          message: `${footballPlayer.name} ma ${appearances} występów - przekracza limit 180!`,
+          message: `${footballPlayer.name} has ${appearances} appearances - exceeds 180 limit!`,
           value: appearances,
         });
         
@@ -108,7 +109,7 @@ export const useGame = () => {
         return { 
           success: false, 
           appearances,
-          message: `Przekroczono limit 180! (${appearances} występów)` 
+          message: `Exceeds 180 limit! (${appearances} appearances)` 
         };
       }
 
@@ -119,7 +120,7 @@ export const useGame = () => {
       if (newScore < 0) {
         setLastThrowResult({
           type: 'bust',
-          message: `BUST! Wynik ${newScore} - strata ruchu!`,
+          message: `BUST! Score ${newScore} - turn lost!`,
           value: appearances,
         });
         
@@ -135,7 +136,7 @@ export const useGame = () => {
         return { 
           success: false, 
           appearances,
-          message: `BUST! Zejście poniżej zera (${newScore})` 
+          message: `BUST! Went below zero (${newScore})` 
         };
       }
 
@@ -145,6 +146,7 @@ export const useGame = () => {
         playerName: footballPlayer.name,
         appearances,
         timestamp: Date.now(),
+        photo: footballPlayer.photo,
       };
 
       setGameState((prev) => {
@@ -159,7 +161,7 @@ export const useGame = () => {
 
       setLastThrowResult({
         type: 'success',
-        message: `${footballPlayer.name}: ${appearances} występów!`,
+        message: `${footballPlayer.name}: ${appearances} appearances!`,
         value: appearances,
       });
 
@@ -167,11 +169,11 @@ export const useGame = () => {
       return { 
         success: true, 
         appearances,
-        message: `${footballPlayer.name} - ${appearances} występów` 
+        message: `${footballPlayer.name} - ${appearances} appearances` 
       };
     } catch (error) {
       setIsLoading(false);
-      return { success: false, message: 'Błąd podczas wyszukiwania piłkarza' };
+      return { success: false, message: 'Error searching for player' };
     }
   }, [gameState.club, gameState.currentPlayerIndex, gameState.mode, gameState.players]);
 
