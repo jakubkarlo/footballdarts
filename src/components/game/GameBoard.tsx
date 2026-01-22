@@ -9,6 +9,7 @@ import { ThrowHistory } from './ThrowHistory';
 import { ClubBadge } from './ClubBadge';
 import { RotateCcw, Flag, ArrowRight, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSquad } from '@/hooks/useSquad';
 
 interface GameBoardProps {
   gameState: GameState;
@@ -36,6 +37,8 @@ export const GameBoard = ({
   const [showInfo, setShowInfo] = useState(false);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const is1v1 = gameState.mode !== 'solo';
+  
+  const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
 
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-6 bg-stadium-gradient relative">
@@ -140,6 +143,8 @@ export const GameBoard = ({
           isLoading={isLoading}
           disabled={currentPlayer.isBusted || currentPlayer.isFinished}
           placeholder={`Search player from ${gameState.club?.name || ''}...`}
+          suggestions={squad}
+          isLoadingSuggestions={isLoadingSquad}
         />
       </div>
 
