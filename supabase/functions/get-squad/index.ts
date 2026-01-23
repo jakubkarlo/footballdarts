@@ -28,21 +28,23 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(
-      `https://api-football-v1.p.rapidapi.com/v3/players/squads?team=${teamId}`,
-      {
-        headers: {
-          'X-RapidAPI-Key': apiKey,
-          'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
-        },
-      }
-    );
+    const url = `https://api-football-v1.p.rapidapi.com/v3/players/squads?team=${teamId}`;
+    console.log('Fetching squad from:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
+      },
+    });
 
     const data = await response.json();
+    console.log('API Response status:', response.status);
+    console.log('API Response data:', JSON.stringify(data).substring(0, 500));
     
     if (!data.response || data.response.length === 0) {
       return new Response(
-        JSON.stringify({ players: [], message: 'Team not found' }),
+        JSON.stringify({ players: [], message: 'Team not found', debug: data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
