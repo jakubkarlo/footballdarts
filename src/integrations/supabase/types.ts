@@ -14,16 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      game_players: {
+        Row: {
+          created_at: string
+          id: string
+          is_busted: boolean
+          is_finished: boolean
+          player_name: string
+          player_order: number
+          score: number
+          session_id: string
+          session_token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_busted?: boolean
+          is_finished?: boolean
+          player_name: string
+          player_order: number
+          score: number
+          session_id: string
+          session_token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_busted?: boolean
+          is_finished?: boolean
+          player_name?: string
+          player_order?: number
+          score?: number
+          session_id?: string
+          session_token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_players_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_sessions: {
+        Row: {
+          club_country: string | null
+          club_id: string | null
+          club_logo: string | null
+          club_name: string | null
+          code: string
+          created_at: string
+          current_player_index: number
+          host_id: string | null
+          id: string
+          max_players: number
+          mode: Database["public"]["Enums"]["game_mode"]
+          starting_score: number
+          status: Database["public"]["Enums"]["game_status"]
+          updated_at: string
+        }
+        Insert: {
+          club_country?: string | null
+          club_id?: string | null
+          club_logo?: string | null
+          club_name?: string | null
+          code: string
+          created_at?: string
+          current_player_index?: number
+          host_id?: string | null
+          id?: string
+          max_players?: number
+          mode: Database["public"]["Enums"]["game_mode"]
+          starting_score?: number
+          status?: Database["public"]["Enums"]["game_status"]
+          updated_at?: string
+        }
+        Update: {
+          club_country?: string | null
+          club_id?: string | null
+          club_logo?: string | null
+          club_name?: string | null
+          code?: string
+          created_at?: string
+          current_player_index?: number
+          host_id?: string | null
+          id?: string
+          max_players?: number
+          mode?: Database["public"]["Enums"]["game_mode"]
+          starting_score?: number
+          status?: Database["public"]["Enums"]["game_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      game_throws: {
+        Row: {
+          appearances: number
+          created_at: string
+          football_player_id: string
+          football_player_name: string
+          id: string
+          photo: string | null
+          player_id: string
+          session_id: string
+        }
+        Insert: {
+          appearances: number
+          created_at?: string
+          football_player_id: string
+          football_player_name: string
+          id?: string
+          photo?: string | null
+          player_id: string
+          session_id: string
+        }
+        Update: {
+          appearances?: number
+          created_at?: string
+          football_player_id?: string
+          football_player_name?: string
+          id?: string
+          photo?: string | null
+          player_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_throws_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "game_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_throws_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_game_code: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      game_mode: "solo" | "1v1-turns" | "1v1-one-shot"
+      game_status: "waiting" | "playing" | "finished"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +296,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      game_mode: ["solo", "1v1-turns", "1v1-one-shot"],
+      game_status: ["waiting", "playing", "finished"],
+    },
   },
 } as const

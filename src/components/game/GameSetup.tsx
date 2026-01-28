@@ -15,7 +15,13 @@ interface GameSetupProps {
   onClubSelect: (club: Club) => void;
   onStart: (playerNames: string[]) => void;
   onBack: () => void;
+  hidePlayerNames?: boolean;
 }
+
+const getInitialPlayerNames = (mode: GameMode): string[] => {
+  if (mode === 'solo') return ['Player'];
+  return ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
+};
 
 export const GameSetup = ({
   mode,
@@ -23,10 +29,10 @@ export const GameSetup = ({
   onClubSelect,
   onStart,
   onBack,
+  hidePlayerNames = false,
 }: GameSetupProps) => {
-  const [playerNames, setPlayerNames] = useState<string[]>(
-    mode === 'solo' ? ['Player'] : ['Player 1', 'Player 2']
-  );
+  const [playerNames, setPlayerNames] = useState<string[]>(getInitialPlayerNames(mode));
+  const [playerCount, setPlayerCount] = useState(2);
   const [step, setStep] = useState<'club' | 'players'>('club');
 
   const handleRandomClub = () => {
@@ -39,7 +45,10 @@ export const GameSetup = ({
     setPlayerNames(newNames);
   };
 
-  const canProceed = selectedClub && playerNames.every((name) => name.trim());
+  const activePlayerNames = mode === 'solo' ? playerNames.slice(0, 1) : playerNames.slice(0, playerCount);
+  const canProceed = selectedClub && activePlayerNames.every((name) => name.trim());
+
+  const isMultiplayer = mode !== 'solo';
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
@@ -155,13 +164,22 @@ export const GameSetup = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Button
-                onClick={() => setStep('players')}
-                className="gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl"
-              >
-                Next
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+              {hidePlayerNames ? (
+                <Button
+                  onClick={() => onStart([])}
+                  className="gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl"
+                >
+                  Done
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setStep('players')}
+                  className="gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl"
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              )}
             </motion.div>
           )}
         </>
@@ -195,6 +213,33 @@ export const GameSetup = ({
             </motion.div>
           )}
 
+          {/* Player count selector for multiplayer */}
+          {isMultiplayer && (
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <p className="text-sm text-muted-foreground mb-3 text-center">Number of players</p>
+              <div className="flex gap-3 justify-center">
+                {[2, 3, 4].map((count) => (
+                  <button
+                    key={count}
+                    onClick={() => setPlayerCount(count)}
+                    className={cn(
+                      'w-12 h-12 rounded-xl border-2 font-display font-bold text-lg transition-all',
+                      playerCount === count
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border/50 hover:border-primary/50'
+                    )}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {/* Player name inputs */}
           <motion.div
             className="w-full max-w-md space-y-4"
@@ -202,7 +247,7 @@ export const GameSetup = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            {playerNames.map((name, index) => (
+            {activePlayerNames.map((name, index) => (
               <div key={index} className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -223,7 +268,7 @@ export const GameSetup = ({
             transition={{ delay: 0.2 }}
           >
             <Button
-              onClick={() => onStart(playerNames)}
+              onClick={() => onStart(activePlayerNames)}
               disabled={!canProceed}
               className="gap-2 px-12 py-6 text-xl font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 rounded-2xl shadow-xl shadow-secondary/30"
             >

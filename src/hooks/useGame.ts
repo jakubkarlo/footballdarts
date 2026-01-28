@@ -31,6 +31,10 @@ export const useGame = () => {
     isGameOver: false,
     winner: null,
     phase: 'menu',
+    isOnline: false,
+    gameCode: null,
+    sessionId: null,
+    myPlayerIndex: null,
   });
 
   const [blitzResult, setBlitzResult] = useState<BlitzResult | null>(null);
@@ -104,8 +108,8 @@ export const useGame = () => {
           value: appearances,
         });
         
-        // In one-shot mode, disqualify
-        if (gameState.mode === '1v1-one-shot') {
+        // In blitz mode, disqualify
+        if (gameState.mode === 'multiplayer-blitz') {
           setGameState((prev) => {
             const newPlayers = [...prev.players];
             newPlayers[prev.currentPlayerIndex].isBusted = true;
@@ -132,7 +136,7 @@ export const useGame = () => {
           value: appearances,
         });
         
-        if (gameState.mode === '1v1-one-shot') {
+        if (gameState.mode === 'multiplayer-blitz') {
           setGameState((prev) => {
             const newPlayers = [...prev.players];
             newPlayers[prev.currentPlayerIndex].isBusted = true;
@@ -230,6 +234,10 @@ export const useGame = () => {
       isGameOver: false,
       winner: null,
       phase: 'menu',
+      isOnline: false,
+      gameCode: null,
+      sessionId: null,
+      myPlayerIndex: null,
     });
     setLastThrowResult(null);
     setBlitzResult(null);

@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { GameMode, StartingScore } from '@/types/game';
-import { User, Users, Zap, Target, Trophy, Timer } from 'lucide-react';
+import { User, Users, Zap, Target, Trophy, Timer, Wifi, Plus, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GameMenuProps {
@@ -10,6 +11,8 @@ interface GameMenuProps {
   onModeSelect: (mode: GameMode) => void;
   onScoreSelect: (score: StartingScore) => void;
   onStart: () => void;
+  onCreateOnline?: () => void;
+  onJoinOnline?: () => void;
 }
 
 const gameModes: { mode: GameMode; label: string; description: string; icon: React.ReactNode }[] = [
@@ -20,14 +23,14 @@ const gameModes: { mode: GameMode; label: string; description: string; icon: Rea
     icon: <User className="w-6 h-6" />,
   },
   {
-    mode: '1v1-turns',
-    label: '1v1 Turns',
-    description: 'Take turns with your opponent',
+    mode: 'multiplayer-turns',
+    label: 'Multiplayer Turns',
+    description: 'Up to 4 players, take turns',
     icon: <Users className="w-6 h-6" />,
   },
   {
-    mode: '1v1-one-shot',
-    label: '1v1 Blitz',
+    mode: 'multiplayer-blitz',
+    label: 'Multiplayer Blitz',
     description: 'All players at once - sudden death!',
     icon: <Zap className="w-6 h-6" />,
   },
@@ -41,7 +44,11 @@ export const GameMenu = ({
   onModeSelect,
   onScoreSelect,
   onStart,
+  onCreateOnline,
+  onJoinOnline,
 }: GameMenuProps) => {
+  const isMultiplayer = selectedMode !== 'solo';
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
       {/* Animated background elements */}
@@ -132,7 +139,7 @@ export const GameMenu = ({
 
       {/* Starting Score Selection */}
       <motion.div
-        className="w-full max-w-lg mb-12 relative z-10"
+        className="w-full max-w-lg mb-8 relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
@@ -161,20 +168,48 @@ export const GameMenu = ({
         </div>
       </motion.div>
 
-      {/* Start Button */}
+      {/* Start Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="relative z-10"
+        className="relative z-10 flex flex-col items-center gap-4"
       >
         <Button
           onClick={onStart}
           size="lg"
           className="px-14 py-7 text-xl font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 shadow-xl shadow-secondary/30 rounded-2xl"
         >
-          START GAME
+          {isMultiplayer ? 'LOCAL GAME' : 'START GAME'}
         </Button>
+
+        {/* Online buttons for multiplayer modes */}
+        {isMultiplayer && onCreateOnline && onJoinOnline && (
+          <div className="flex gap-4">
+            <Button
+              onClick={onCreateOnline}
+              variant="outline"
+              className="gap-2 px-6 py-6 rounded-xl border-primary text-primary hover:bg-primary/10"
+            >
+              <Plus className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-bold">Create Online</div>
+                <div className="text-xs opacity-70">Host a game</div>
+              </div>
+            </Button>
+            <Button
+              onClick={onJoinOnline}
+              variant="outline"
+              className="gap-2 px-6 py-6 rounded-xl border-primary text-primary hover:bg-primary/10"
+            >
+              <LogIn className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-bold">Join Online</div>
+                <div className="text-xs opacity-70">Enter code</div>
+              </div>
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       {/* Rules hint */}
