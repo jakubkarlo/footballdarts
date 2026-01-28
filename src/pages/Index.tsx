@@ -4,6 +4,8 @@ import { GameMenu } from '@/components/game/GameMenu';
 import { GameSetup } from '@/components/game/GameSetup';
 import { GameBoard } from '@/components/game/GameBoard';
 import { GameResult } from '@/components/game/GameResult';
+import { BlitzGameBoard } from '@/components/game/BlitzGameBoard';
+import { BlitzResult } from '@/components/game/BlitzResult';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const Index = () => {
@@ -11,6 +13,7 @@ const Index = () => {
     gameState,
     isLoading,
     lastThrowResult,
+    blitzResult,
     setMode,
     setStartingScore,
     setClub,
@@ -18,6 +21,7 @@ const Index = () => {
     makeThrow,
     endTurn,
     finishGame,
+    finishBlitzGame,
     resetGame,
     goToSetup,
   } = useGame();
@@ -30,6 +34,8 @@ const Index = () => {
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     finishGame(currentPlayer.id);
   };
+
+  const isBlitzMode = gameState.mode === '1v1-one-shot';
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -71,7 +77,7 @@ const Index = () => {
             </motion.div>
           )}
 
-          {gameState.phase === 'playing' && (
+          {gameState.phase === 'playing' && !isBlitzMode && (
             <motion.div
               key="playing"
               initial={{ opacity: 0 }}
@@ -90,7 +96,22 @@ const Index = () => {
             </motion.div>
           )}
 
-          {gameState.phase === 'result' && (
+          {gameState.phase === 'playing' && isBlitzMode && (
+            <motion.div
+              key="blitz-playing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <BlitzGameBoard
+                gameState={gameState}
+                onFinishBlitz={finishBlitzGame}
+                onReset={resetGame}
+              />
+            </motion.div>
+          )}
+
+          {gameState.phase === 'result' && !isBlitzMode && (
             <motion.div
               key="result"
               initial={{ opacity: 0 }}
@@ -99,6 +120,24 @@ const Index = () => {
             >
               <GameResult
                 gameState={gameState}
+                onPlayAgain={resetGame}
+              />
+            </motion.div>
+          )}
+
+          {gameState.phase === 'result' && isBlitzMode && blitzResult && (
+            <motion.div
+              key="blitz-result"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <BlitzResult
+                gameState={gameState}
+                player1Score={blitzResult.player1Score}
+                player2Score={blitzResult.player2Score}
+                player1Throws={blitzResult.player1Throws}
+                player2Throws={blitzResult.player2Throws}
                 onPlayAgain={resetGame}
               />
             </motion.div>
