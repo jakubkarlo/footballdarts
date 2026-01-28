@@ -1,6 +1,8 @@
-export type GameMode = 'solo' | '1v1-turns' | '1v1-one-shot';
+export type GameMode = 'solo' | 'multiplayer-turns' | 'multiplayer-blitz';
 
 export type StartingScore = 301 | 501 | 701;
+
+export type GamePhase = 'menu' | 'lobby' | 'setup' | 'playing' | 'result';
 
 export interface Player {
   id: string;
@@ -39,6 +41,7 @@ export interface GamePlayer {
   isActive: boolean;
   isBusted: boolean;
   isFinished: boolean;
+  sessionToken?: string;
 }
 
 export interface GameState {
@@ -49,7 +52,11 @@ export interface GameState {
   currentPlayerIndex: number;
   isGameOver: boolean;
   winner: GamePlayer | null;
-  phase: 'menu' | 'setup' | 'playing' | 'result';
+  phase: GamePhase;
+  isOnline: boolean;
+  gameCode: string | null;
+  sessionId: string | null;
+  myPlayerIndex: number | null;
 }
 
 export interface PlayerSearchResult {
@@ -60,4 +67,28 @@ export interface PlayerSearchResult {
   nationality: string;
   isValid: boolean;
   errorMessage?: string;
+}
+
+export interface OnlineGameSession {
+  id: string;
+  code: string;
+  mode: GameMode;
+  startingScore: number;
+  club: Club | null;
+  status: 'waiting' | 'playing' | 'finished';
+  currentPlayerIndex: number;
+  maxPlayers: number;
+  players: OnlinePlayer[];
+}
+
+export interface OnlinePlayer {
+  id: string;
+  sessionId: string;
+  playerName: string;
+  playerOrder: number;
+  score: number;
+  isBusted: boolean;
+  isFinished: boolean;
+  sessionToken: string;
+  throws: Throw[];
 }

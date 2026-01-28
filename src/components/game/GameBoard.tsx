@@ -36,7 +36,7 @@ export const GameBoard = ({
 }: GameBoardProps) => {
   const [showInfo, setShowInfo] = useState(false);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const is1v1 = gameState.mode !== 'solo';
+  const isMultiplayer = gameState.mode !== 'solo';
   
   const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
 
@@ -89,7 +89,7 @@ export const GameBoard = ({
           <ul className="text-sm text-muted-foreground space-y-1">
             <li>• Max throw value: 180 appearances</li>
             <li>• Going below zero = BUST (lose turn)</li>
-            <li>• Exceeding 180 = invalid throw {gameState.mode === '1v1-one-shot' && '(disqualified)'}</li>
+            <li>• Exceeding 180 = invalid throw {gameState.mode === 'multiplayer-blitz' && '(disqualified)'}</li>
             <li>• You decide when to finish - closer to zero wins!</li>
           </ul>
         </motion.div>
@@ -103,15 +103,15 @@ export const GameBoard = ({
       >
         <span className="px-4 py-1.5 bg-card/80 backdrop-blur-sm rounded-full text-sm text-muted-foreground border border-border/50">
           {gameState.mode === 'solo' && 'Solo Mode'}
-          {gameState.mode === '1v1-turns' && '1v1 - Turns'}
-          {gameState.mode === '1v1-one-shot' && '1v1 - Blitz Mode'}
+          {gameState.mode === 'multiplayer-turns' && 'Multiplayer - Turns'}
+          {gameState.mode === 'multiplayer-blitz' && 'Multiplayer - Blitz'}
         </span>
       </motion.div>
 
       {/* Score displays */}
       <div className={cn(
         'grid gap-4 mb-6',
-        is1v1 ? 'grid-cols-2' : 'grid-cols-1 max-w-md mx-auto w-full'
+        isMultiplayer ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 max-w-md mx-auto w-full'
       )}>
         {gameState.players.map((player, index) => (
           <ScoreDisplay
@@ -155,7 +155,7 @@ export const GameBoard = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        {is1v1 && gameState.mode === '1v1-turns' && (
+        {isMultiplayer && gameState.mode === 'multiplayer-turns' && (
           <Button
             onClick={onEndTurn}
             variant="outline"

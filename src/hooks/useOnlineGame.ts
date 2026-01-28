@@ -1,0 +1,397 @@
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { GameMode, StartingScore, Club, OnlineGameSession, OnlinePlayer, Throw } from '@/types/game';
+import { RealtimeChannel } from '@supabase/supabase-js';
+
+const generateCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
+export const useOnlineGame = () => {
+  const [session, setSession] = useState<OnlineGameSession | null>(null);
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [mySessionToken, setMySessionToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  const fetchSessionData = useCallback(async (sessionId: string) => {
+    // Fetch session
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('game_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (sessionError || !sessionData) {
+      console.error('Error fetching session:', sessionError);
+      return null;
+    }
+
+    // Fetch players
+    const { data: playersData, error: playersError } = await supabase
+      .from('game_players')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('player_order', { ascending: true });
+
+    if (playersError) {
+      console.error('Error fetching players:', playersError);
+      return null;
+    }
+
+    // Fetch throws for each player
+    const playersWithThrows: OnlinePlayer[] = await Promise.all(
+      (playersData || []).map(async (player) => {
+        const { data: throwsData } = await supabase
+          .from('game_throws')
+          .select('*')
+          .eq('player_id', player.id)
+          .order('created_at', { ascending: true });
+
+        const throws: Throw[] = (throwsData || []).map((t) => ({
+          playerId: t.football_player_id,
+          playerName: t.football_player_name,
+          appearances: t.appearances,
+          timestamp: new Date(t.created_at).getTime(),
+          photo: t.photo || undefined,
+        }));
+
+        return {
+          id: player.id,
+          sessionId: player.session_id,
+          playerName: player.player_name,
+          playerOrder: player.player_order,
+          score: player.score,
+          isBusted: player.is_busted,
+          isFinished: player.is_finished,
+          sessionToken: player.session_token,
+          throws,
+        };
+      })
+    );
+
+    // Map DB mode to app mode
+    const dbModeToAppMode = (dbMode: string): GameMode => {
+      if (dbMode === '1v1-turns') return 'multiplayer-turns';
+      if (dbMode === '1v1-one-shot') return 'multiplayer-blitz';
+      return 'solo';
+    };
+
+    const gameSession: OnlineGameSession = {
+      id: sessionData.id,
+      code: sessionData.code,
+      mode: dbModeToAppMode(sessionData.mode),
+      startingScore: sessionData.starting_score,
+      club: sessionData.club_id ? {
+        id: sessionData.club_id,
+        name: sessionData.club_name || '',
+        logo: sessionData.club_logo || '',
+        country: sessionData.club_country || '',
+      } : null,
+      status: sessionData.status as 'waiting' | 'playing' | 'finished',
+      currentPlayerIndex: sessionData.current_player_index,
+      maxPlayers: sessionData.max_players,
+      players: playersWithThrows,
+    };
+
+    setSession(gameSession);
+    return gameSession;
+  }, []);
+
+  const subscribeToSession = useCallback((sessionId: string) => {
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+    }
+
+    const channel = supabase
+      .channel(`game-${sessionId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_sessions', filter: `id=eq.${sessionId}` },
+        () => fetchSessionData(sessionId)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_players', filter: `session_id=eq.${sessionId}` },
+        () => fetchSessionData(sessionId)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'game_throws', filter: `session_id=eq.${sessionId}` },
+        () => fetchSessionData(sessionId)
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+  }, [fetchSessionData]);
+
+  const createGame = useCallback(async (
+    mode: GameMode,
+    startingScore: StartingScore,
+    maxPlayers: number,
+    playerName: string
+  ): Promise<{ code: string; sessionId: string } | null> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const code = generateCode();
+
+      // Create session - need to cast mode for DB enum compatibility
+      const dbMode = mode === 'multiplayer-turns' ? '1v1-turns' : mode === 'multiplayer-blitz' ? '1v1-one-shot' : 'solo';
+      
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('game_sessions')
+        .insert({
+          code,
+          mode: dbMode,
+          starting_score: startingScore,
+          max_players: maxPlayers,
+          status: 'waiting',
+        } as any)
+        .select()
+        .single();
+
+      if (sessionError || !sessionData) {
+        throw new Error(sessionError?.message || 'Failed to create game');
+      }
+
+      // Add host as first player
+      const { data: playerData, error: playerError } = await supabase
+        .from('game_players')
+        .insert({
+          session_id: sessionData.id,
+          player_name: playerName,
+          player_order: 0,
+          score: startingScore,
+        })
+        .select()
+        .single();
+
+      if (playerError || !playerData) {
+        throw new Error(playerError?.message || 'Failed to add player');
+      }
+
+      setMyPlayerId(playerData.id);
+      setMySessionToken(playerData.session_token);
+      
+      await fetchSessionData(sessionData.id);
+      subscribeToSession(sessionData.id);
+
+      setIsLoading(false);
+      return { code, sessionId: sessionData.id };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsLoading(false);
+      return null;
+    }
+  }, [fetchSessionData, subscribeToSession]);
+
+  const joinGame = useCallback(async (
+    code: string,
+    playerName: string
+  ): Promise<{ sessionId: string } | null> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Find session by code
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('code', code.toUpperCase())
+        .eq('status', 'waiting')
+        .maybeSingle();
+
+      if (sessionError || !sessionData) {
+        throw new Error('Game not found or already started');
+      }
+
+      // Check current player count
+      const { count, error: countError } = await supabase
+        .from('game_players')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionData.id);
+
+      if (countError) throw new Error(countError.message);
+
+      if ((count || 0) >= sessionData.max_players) {
+        throw new Error('Game is full');
+      }
+
+      // Add player
+      const { data: playerData, error: playerError } = await supabase
+        .from('game_players')
+        .insert({
+          session_id: sessionData.id,
+          player_name: playerName,
+          player_order: count || 0,
+          score: sessionData.starting_score,
+        })
+        .select()
+        .single();
+
+      if (playerError || !playerData) {
+        throw new Error(playerError?.message || 'Failed to join game');
+      }
+
+      setMyPlayerId(playerData.id);
+      setMySessionToken(playerData.session_token);
+      
+      await fetchSessionData(sessionData.id);
+      subscribeToSession(sessionData.id);
+
+      setIsLoading(false);
+      return { sessionId: sessionData.id };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsLoading(false);
+      return null;
+    }
+  }, [fetchSessionData, subscribeToSession]);
+
+  const setClub = useCallback(async (club: Club) => {
+    if (!session) return;
+
+    await supabase
+      .from('game_sessions')
+      .update({
+        club_id: club.id,
+        club_name: club.name,
+        club_logo: club.logo,
+        club_country: club.country,
+      })
+      .eq('id', session.id);
+  }, [session]);
+
+  const startOnlineGame = useCallback(async () => {
+    if (!session) return;
+
+    await supabase
+      .from('game_sessions')
+      .update({ status: 'playing' })
+      .eq('id', session.id);
+  }, [session]);
+
+  const makeOnlineThrow = useCallback(async (
+    footballPlayerId: string,
+    footballPlayerName: string,
+    appearances: number,
+    photo?: string
+  ) => {
+    if (!session || !myPlayerId) return;
+
+    const myPlayer = session.players.find(p => p.id === myPlayerId);
+    if (!myPlayer) return;
+
+    const newScore = myPlayer.score - appearances;
+    const isBusted = newScore < 0;
+
+    // Add throw
+    await supabase.from('game_throws').insert({
+      session_id: session.id,
+      player_id: myPlayerId,
+      football_player_id: footballPlayerId,
+      football_player_name: footballPlayerName,
+      appearances,
+      photo,
+    });
+
+    // Update player score
+    await supabase
+      .from('game_players')
+      .update({
+        score: newScore,
+        is_busted: isBusted,
+      })
+      .eq('id', myPlayerId);
+
+    return { newScore, isBusted };
+  }, [session, myPlayerId]);
+
+  const endOnlineTurn = useCallback(async () => {
+    if (!session) return;
+
+    const nextIndex = (session.currentPlayerIndex + 1) % session.players.length;
+
+    await supabase
+      .from('game_sessions')
+      .update({ current_player_index: nextIndex })
+      .eq('id', session.id);
+  }, [session]);
+
+  const finishOnlinePlayer = useCallback(async () => {
+    if (!session || !myPlayerId) return;
+
+    await supabase
+      .from('game_players')
+      .update({ is_finished: true })
+      .eq('id', myPlayerId);
+
+    // Check if all players finished
+    const allFinished = session.players.every(p => 
+      p.id === myPlayerId || p.isFinished || p.isBusted
+    );
+
+    if (allFinished) {
+      await supabase
+        .from('game_sessions')
+        .update({ status: 'finished' })
+        .eq('id', session.id);
+    }
+  }, [session, myPlayerId]);
+
+  const leaveGame = useCallback(async () => {
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+      channelRef.current = null;
+    }
+
+    if (myPlayerId && session?.status === 'waiting') {
+      await supabase
+        .from('game_players')
+        .delete()
+        .eq('id', myPlayerId);
+    }
+
+    setSession(null);
+    setMyPlayerId(null);
+    setMySessionToken(null);
+    setError(null);
+  }, [myPlayerId, session?.status]);
+
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
+      }
+    };
+  }, []);
+
+  const isMyTurn = session?.players.findIndex(p => p.id === myPlayerId) === session?.currentPlayerIndex;
+  const myPlayerIndex = session?.players.findIndex(p => p.id === myPlayerId) ?? null;
+
+  return {
+    session,
+    myPlayerId,
+    mySessionToken,
+    myPlayerIndex,
+    isMyTurn,
+    isLoading,
+    error,
+    createGame,
+    joinGame,
+    setClub,
+    startOnlineGame,
+    makeOnlineThrow,
+    endOnlineTurn,
+    finishOnlinePlayer,
+    leaveGame,
+  };
+};
