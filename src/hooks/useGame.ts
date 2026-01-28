@@ -14,6 +14,12 @@ const createPlayer = (id: string, name: string, startingScore: StartingScore): G
   isFinished: false,
 });
 
+export interface BlitzResult {
+  player1Throws: Throw[];
+  player2Throws: Throw[];
+  player1Score: number;
+  player2Score: number;
+}
 
 export const useGame = () => {
   const [gameState, setGameState] = useState<GameState>({
@@ -26,6 +32,8 @@ export const useGame = () => {
     winner: null,
     phase: 'menu',
   });
+
+  const [blitzResult, setBlitzResult] = useState<BlitzResult | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [lastThrowResult, setLastThrowResult] = useState<{
@@ -224,16 +232,57 @@ export const useGame = () => {
       phase: 'menu',
     });
     setLastThrowResult(null);
+    setBlitzResult(null);
   }, []);
 
   const goToSetup = useCallback(() => {
     setGameState((prev) => ({ ...prev, phase: 'setup' }));
   }, []);
 
+  const finishBlitzGame = useCallback((
+    player1Throws: Throw[],
+    player2Throws: Throw[],
+    player1Score: number,
+    player2Score: number
+  ) => {
+    setBlitzResult({
+      player1Throws,
+      player2Throws,
+      player1Score,
+      player2Score,
+    });
+
+    // Determine winner
+    let winnerId: string | null = null;
+    const p1Busted = player1Score < 0;
+    const p2Busted = player2Score < 0;
+
+    if (p1Busted && p2Busted) {
+      winnerId = player1Score > player2Score ? 'player-0' : 'player-1';
+    } else if (p1Busted) {
+      winnerId = 'player-1';
+    } else if (p2Busted) {
+      winnerId = 'player-0';
+    } else {
+      winnerId = player1Score < player2Score ? 'player-0' : 'player-1';
+    }
+
+    setGameState((prev) => {
+      const winner = prev.players.find((p) => p.id === winnerId) || null;
+      return {
+        ...prev,
+        isGameOver: true,
+        winner,
+        phase: 'result',
+      };
+    });
+  }, []);
+
   return {
     gameState,
     isLoading,
     lastThrowResult,
+    blitzResult,
     setMode,
     setStartingScore,
     setClub,
@@ -241,6 +290,7 @@ export const useGame = () => {
     makeThrow,
     endTurn,
     finishGame,
+    finishBlitzGame,
     resetGame,
     goToSetup,
   };
