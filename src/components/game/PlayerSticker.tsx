@@ -32,7 +32,7 @@ function positionAbbr(position?: string) {
   return 'FW';
 }
 
-export const PlayerSticker = ({ throw_, index, ownerName, hidden = false }: PlayerStickerProps) => {
+export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }: PlayerStickerProps & { bust?: boolean }) => {
   const color   = hidden ? '#4a3d2e' : positionColor(throw_.position);
   const abbr    = positionAbbr(throw_.position);
   const num     = String(index + 1).padStart(3, '0');
@@ -53,7 +53,7 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false }: Play
       }}
     >
       {/* Inner card — rounded clip */}
-      <div style={{ borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
 
         {/* ── Photo area ───────────────────────────────────────────── */}
         <div style={{
@@ -141,6 +141,18 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false }: Play
             }}>?</div>
           )}
         </div>
+
+        {/* Bust overlay */}
+        {(bust ?? throw_.busted) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: index * 0.045 + 0.2 }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(185,28,28,0.55)', zIndex: 10, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.08em', textShadow: '0 2px 10px rgba(0,0,0,0.6)' }}>✕</div>
+          </motion.div>
+        )}
 
         {/* ── Stat footer ──────────────────────────────────────────── */}
         <div style={{

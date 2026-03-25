@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GameState, FootballPlayer, Throw } from '@/types/game';
 import { PlayerInput } from './PlayerInput';
 import { PlayerSticker } from './PlayerSticker';
-import { RotateCcw, EyeOff, X, Trash2 } from 'lucide-react';
+import { RotateCcw, EyeOff, X } from 'lucide-react';
 import { useSquad } from '@/hooks/useSquad';
 import { searchPlayer } from '@/data/mockData';
+import { CardBack } from './BlitzGameBoard';
 
 const PLAYER_COLORS = ['#1e3a8a', '#b91c1c', '#15803d', '#92400e'];
 
@@ -53,7 +54,8 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   // Persistent game state
   const [scores, setScores] = useState<number[]>(() => players.map(() => gameState.startingScore));
   const [eliminated, setEliminated] = useState<boolean[]>(() => players.map(() => false));
-  const [allThrows, setAllThrows] = useState<Throw[][]>(() => players.map(() => []));
+  // allThrows[playerIdx][roundIdx] = throws for that player in that round
+  const [allThrows, setAllThrows] = useState<Throw[][][]>(() => players.map(() => []));
 
   // Round state
   const [roundNum, setRoundNum] = useState(1);
@@ -68,6 +70,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [historyRound, setHistoryRound] = useState(0);
 
   const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
 
@@ -77,7 +80,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const curDraft = draft[curIdx] ?? [];
 
   const usedIds = new Set([
-    ...allThrows[curIdx].map(t => t.playerId),
+    ...allThrows[curIdx].flat().map(t => t.playerId),
     ...curDraft.map(fp => fp.id),
   ]);
 
@@ -116,22 +119,12 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const resolveRound = () => {
     const newScores = [...scores];
     const newElim = [...eliminated];
-    const newThrows = allThrows.map(a => [...a]);
+    const newThrows = allThrows.map(a => [...a]); // shallow copy of rounds array per player
     const results: RoundResult[] = [];
 
     for (const pIdx of draftOrder) {
       const d = draft[pIdx] ?? [];
       const total = d.reduce((s, fp) => s + fp.appearances, 0);
-      const throws: Throw[] = d.map(fp => ({
-        playerId: fp.id,
-        playerName: fp.name,
-        appearances: fp.appearances,
-        timestamp: Date.now(),
-        photo: fp.photo,
-        position: fp.position,
-      }));
-      newThrows[pIdx] = [...newThrows[pIdx], ...throws];
-
       let elim = false;
       let reason: RoundResult['reason'];
       if (total > 180) {
@@ -141,6 +134,17 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
       } else {
         newScores[pIdx] -= total;
       }
+
+      const throws: Throw[] = d.map(fp => ({
+        playerId: fp.id,
+        playerName: fp.name,
+        appearances: fp.appearances,
+        timestamp: Date.now(),
+        photo: fp.photo,
+        position: fp.position,
+        busted: elim,
+      }));
+      newThrows[pIdx] = [...newThrows[pIdx], throws]; // push whole round as its own array
       results.push({ pIdx, apps: total, elim, reason });
     }
 
@@ -218,43 +222,85 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
       {showHistory && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '20px 16px' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
           onClick={() => setShowHistory(false)}
         >
           <motion.div
             initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
             onClick={e => e.stopPropagation()}
-            style={{ background: '#ede3ce', borderRadius: 8, padding: '24px', maxWidth: 680, width: '100%', position: 'relative' }}
+            style={{ background: '#ede3ce', borderRadius: 8, padding: '20px 24px', maxWidth: '92vw', width: '100%', position: 'relative', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
           >
-            <button
-              onClick={() => setShowHistory(false)}
-              style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', cursor: 'pointer', color: '#8a7553' }}
-            >
-              <X size={20} />
-            </button>
-            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: '#1e3a8a', letterSpacing: '0.06em', marginBottom: 16 }}>
-              Throw History
-            </div>
-            {players.map((player, pIdx) => (
-              <div key={player.id} style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ background: PLAYER_COLORS[pIdx], borderRadius: 3, padding: '3px 10px', fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.85rem', color: 'white', letterSpacing: '0.06em' }}>
-                    {player.name}
-                  </div>
-                  {eliminated[pIdx] && (
-                    <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.7rem', color: '#b91c1c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                      • out
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {allThrows[pIdx].length === 0
-                    ? <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.8rem', color: '#a09070' }}>No throws yet</span>
-                    : allThrows[pIdx].map((t, ti) => <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} />)
-                  }
-                </div>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexShrink: 0 }}>
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.3rem', color: '#1e3a8a', letterSpacing: '0.06em' }}>
+                Historia rzutów
               </div>
-            ))}
+              <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8a7553', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {(() => {
+              const totalRounds = Math.max(...allThrows.map(p => p.length), 0);
+              if (totalRounds === 0) return (
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.85rem', color: '#a09070' }}>Brak rozegranych rund</span>
+              );
+              const activeRound = Math.min(historyRound, totalRounds - 1);
+              return (
+                <>
+                  {/* Round tabs */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, flexShrink: 0 }}>
+                    {Array.from({ length: totalRounds }, (_, rIdx) => (
+                      <button
+                        key={rIdx}
+                        onClick={() => setHistoryRound(rIdx)}
+                        style={{
+                          fontFamily: 'Bebas Neue, sans-serif',
+                          fontSize: '0.85rem',
+                          letterSpacing: '0.14em',
+                          padding: '5px 14px',
+                          borderRadius: 4,
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: activeRound === rIdx ? '#1e3a8a' : 'rgba(30,58,138,0.1)',
+                          color: activeRound === rIdx ? 'white' : '#1e3a8a',
+                          transition: 'background 0.15s, color 0.15s',
+                        }}
+                      >
+                        R{rIdx + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Active round content */}
+                  <div style={{ overflowY: 'auto', flex: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {players.map((player, pIdx) => {
+                        const roundThrows = allThrows[pIdx][activeRound];
+                        if (!roundThrows) return null;
+                        return (
+                          <div key={player.id}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                              <div style={{ background: PLAYER_COLORS[pIdx], borderRadius: 3, padding: '2px 10px', fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'white', letterSpacing: '0.06em' }}>
+                                {player.name}
+                              </div>
+                              {eliminated[pIdx] && activeRound === allThrows[pIdx].length - 1 && (
+                                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>• out</span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                              {roundThrows.map((t, ti) => (
+                                <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </motion.div>
         </motion.div>
       )}
@@ -312,19 +358,29 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: pIdx * 0.08 }}
-                style={{ background: 'white', borderRadius: 6, padding: '16px 20px', textAlign: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: 110, borderTop: `4px solid ${PLAYER_COLORS[pIdx] ?? '#1e3a8a'}` }}
+                style={{
+                  background: elim ? '#b91c1c' : 'white',
+                  borderRadius: 6,
+                  padding: '16px 20px',
+                  textAlign: 'center',
+                  boxShadow: elim
+                    ? '0 0 0 3px #b91c1c, 0 0 28px rgba(185,28,28,0.5)'
+                    : '0 2px 10px rgba(0,0,0,0.1)',
+                  minWidth: 110,
+                  borderTop: elim ? 'none' : `4px solid ${PLAYER_COLORS[pIdx] ?? '#1e3a8a'}`,
+                }}
               >
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.85rem', color: PLAYER_COLORS[pIdx], letterSpacing: '0.06em', marginBottom: 6 }}>
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.85rem', color: elim ? 'rgba(255,255,255,0.8)' : PLAYER_COLORS[pIdx], letterSpacing: '0.06em', marginBottom: 6 }}>
                   {players[pIdx].name}
                 </div>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.68rem', color: '#8a7553', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.68rem', color: elim ? 'rgba(255,255,255,0.6)' : '#8a7553', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>
                   -{apps} apps
                 </div>
                 {elim ? (
                   <>
-                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.2rem', color: '#b91c1c', lineHeight: 1 }}>OUT!</div>
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.58rem', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>
-                      {reason === 'over180' ? 'Over 180' : 'Below zero'}
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', lineHeight: 1, letterSpacing: '0.08em' }}>OUT!</div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
+                      {reason === 'over180' ? 'over 180' : 'below zero'}
                     </div>
                   </>
                 ) : (
@@ -394,7 +450,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
           >
             <RotateCcw size={14} /> New Game
           </motion.button>
-          <motion.button onClick={() => setShowHistory(true)} style={OUTLINE_BTN} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}>
+          <motion.button onClick={() => { setHistoryRound(Math.max(0, allThrows[0].length - 1)); setShowHistory(true); }} style={OUTLINE_BTN} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}>
             History
           </motion.button>
         </div>
@@ -423,41 +479,44 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
           </span>
         </div>
 
-        {/* Draft list */}
-        <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
-          {curDraft.length === 0 ? (
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.78rem', color: '#a09070', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', padding: '14px 0' }}>
-              No players selected yet
+        {/* Previously used players */}
+        {allThrows[curIdx].length > 0 && (
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.62rem', color: '#a09070', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Już wykorzystani
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {curDraft.map((fp, i) => (
-                <motion.div
-                  key={fp.id + i}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white', borderRadius: 4, padding: '8px 12px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', borderLeft: `3px solid ${curColor}` }}
-                >
-                  <div>
-                    <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#1e1a14', letterSpacing: '0.04em' }}>
-                      {fp.name}
-                    </span>
-                    {fp.position && (
-                      <span style={{ marginLeft: 8, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.65rem', color: '#a09070', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        {fp.position}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleRemove(i)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </motion.div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {allThrows[curIdx].flat().map(t => (
+                <div key={t.playerId} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: curColor, background: `${curColor}18`, border: `1px solid ${curColor}40`, borderRadius: 3, padding: '3px 8px', letterSpacing: '0.03em', textDecoration: 'line-through', textDecorationColor: `${curColor}80` }}>
+                  {t.playerName}
+                </div>
               ))}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Draft cards */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 14, minHeight: 80 }}>
+          {curDraft.length === 0 ? (
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.78rem', color: '#a09070', letterSpacing: '0.1em', textTransform: 'uppercase', alignSelf: 'center' }}>
+              No players selected yet
+            </div>
+          ) : curDraft.map((fp, i) => (
+            <motion.div
+              key={fp.id + i}
+              initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
+              animate={{ opacity: 1, scale: 1, rotate: (i % 2 === 0 ? -1.5 : 1.5) }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            >
+              <CardBack
+                playerName={curPlayer.name}
+                color={curColor}
+                cardIndex={i}
+                footballPlayerName={fp.name}
+                onRemove={() => handleRemove(i)}
+              />
+            </motion.div>
+          ))}
         </div>
 
         {/* Search */}

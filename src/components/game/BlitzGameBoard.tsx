@@ -32,16 +32,18 @@ const PLAYER_COLORS = ['#1e3a8a', '#b91c1c', '#15803d', '#92400e'];
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /** Face-down card shown during picking phase */
-const CardBack = ({
+export const CardBack = ({
   playerName,
   color,
   cardIndex,
   footballPlayerName,
+  onRemove,
 }: {
   playerName: string;
   color: string;
   cardIndex: number;
   footballPlayerName?: string;
+  onRemove?: () => void;
 }) => (
   <div
     style={{
@@ -68,17 +70,37 @@ const CardBack = ({
       pointerEvents: 'none',
     }} />
 
-    {/* card number */}
-    <div style={{
-      fontFamily: 'Barlow Condensed, sans-serif',
-      fontWeight: 800,
-      fontSize: '0.55rem',
-      color: 'rgba(255,255,255,0.5)',
-      letterSpacing: '0.05em',
-      alignSelf: 'flex-end',
-    }}>
-      #{String(cardIndex + 1).padStart(2, '0')}
-    </div>
+    {/* top-right: remove button or card number */}
+    {onRemove ? (
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        style={{
+          alignSelf: 'flex-end',
+          background: 'rgba(0,0,0,0.3)',
+          border: 'none',
+          borderRadius: '50%',
+          width: 18, height: 18,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'white',
+          fontSize: '0.65rem',
+          padding: 0,
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+      >✕</button>
+    ) : (
+      <div style={{
+        fontFamily: 'Barlow Condensed, sans-serif',
+        fontWeight: 800,
+        fontSize: '0.55rem',
+        color: 'rgba(255,255,255,0.5)',
+        letterSpacing: '0.05em',
+        alignSelf: 'flex-end',
+      }}>
+        #{String(cardIndex + 1).padStart(2, '0')}
+      </div>
+    )}
 
     {/* football player name or ? */}
     <div style={{
@@ -115,12 +137,14 @@ const FlipCard = ({
   cardIndex,
   isRevealed,
   revealDelay,
+  isBusted,
 }: {
   card: BlitzCard;
   playerName: string;
   cardIndex: number;
   isRevealed: boolean;
   revealDelay: number;
+  isBusted: boolean;
 }) => {
   const backColor = PLAYER_COLORS[card.gamePlayerIndex] ?? '#1e3a8a';
   const p = card.footballPlayer;
@@ -171,7 +195,16 @@ const FlipCard = ({
           display: 'flex',
           flexDirection: 'column',
         }}>
-          <div style={{ borderRadius: 4, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ borderRadius: 4, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            {/* Bust overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isBusted && isRevealed ? 1 : 0 }}
+              transition={{ delay: revealDelay + 0.55, duration: 0.3 }}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(185,28,28,0.55)', zIndex: 10, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.08em', textShadow: '0 2px 10px rgba(0,0,0,0.6)' }}>✕</div>
+            </motion.div>
             {/* Photo area */}
             <div style={{ position: 'relative', flex: 1, background: '#1a120a', overflow: 'hidden' }}>
               <img
@@ -192,8 +225,8 @@ const FlipCard = ({
               </div>
               <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
             </div>
-            {/* Stat footer */}
-            <div style={{ background: posColor(), padding: '5px 6px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, position: 'relative', overflow: 'hidden' }}>
+            {/* Stat footer — player colour */}
+            <div style={{ background: backColor, padding: '5px 6px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 6px)', pointerEvents: 'none' }} />
               <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.65rem', color: 'white', lineHeight: 1, letterSpacing: '0.02em' }}>{p.appearances}</span>
               <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.44rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.12em', textTransform: 'uppercase', paddingBottom: 2 }}>apps</span>
@@ -260,6 +293,15 @@ export const BlitzGameBoard = ({
       return next;
     });
     setIsLoading(false);
+  };
+
+  // ── Remove a card from current picker's deck ──────────────────────────────
+  const handleRemoveCard = (cardIdx: number) => {
+    setCards(prev => {
+      const next = prev.map(arr => [...arr]);
+      next[currentPickerIndex] = next[currentPickerIndex].filter((_, i) => i !== cardIdx);
+      return next;
+    });
   };
 
   // ── Done picking, move to next player ─────────────────────────────────────
@@ -479,6 +521,7 @@ export const BlitzGameBoard = ({
                     color={PLAYER_COLORS[currentPickerIndex]}
                     cardIndex={i}
                     footballPlayerName={card.footballPlayer.name}
+                    onRemove={() => handleRemoveCard(i)}
                   />
                 </motion.div>
               ))}
@@ -589,7 +632,7 @@ export const BlitzGameBoard = ({
                   <motion.div
                     key={player.id}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
-                    animate={isWinner ? { y: -6 } : {}}
+                    animate={{ y: isWinner ? -6 : 0 }}
                     transition={{ delay: resultDelay + 0.1 }}
                   >
                     {/* Player label */}
@@ -616,6 +659,7 @@ export const BlitzGameBoard = ({
                           cardIndex={cIdx}
                           isRevealed={isRevealed}
                           revealDelay={cIdx * 0.08 + pIdx * 0.04}
+                          isBusted={busted[pIdx]}
                         />
                       ))}
                     </div>
@@ -628,26 +672,29 @@ export const BlitzGameBoard = ({
                         transition={{ delay: (cards[pIdx]?.length ?? 0) * 0.08 + 0.5 }}
                         style={{ textAlign: 'center' }}
                       >
-                        <div style={{
-                          fontFamily: 'Bebas Neue, sans-serif',
-                          fontSize: isBusted ? '1.3rem' : '2.4rem',
-                          color: isBusted ? '#b91c1c' : PLAYER_COLORS[pIdx],
-                          letterSpacing: '0.04em',
-                          lineHeight: 1,
-                        }}>
-                          {isBusted ? 'BUST' : scores[pIdx]}
-                        </div>
-                        {!isBusted && (
+                        {isBusted ? (
                           <div style={{
-                            fontFamily: 'Barlow Condensed, sans-serif',
-                            fontWeight: 600,
-                            fontSize: '0.6rem',
-                            color: '#8a7553',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
+                            background: '#b91c1c',
+                            borderRadius: 5,
+                            padding: '6px 18px 5px',
+                            boxShadow: '0 4px 16px rgba(185,28,28,0.5)',
                           }}>
-                            points left
+                            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.1em', lineHeight: 1 }}>
+                              BUST
+                            </div>
+                            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.55rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center' }}>
+                              {totalApps(pIdx) > 180 ? 'over 180' : 'below zero'}
+                            </div>
                           </div>
+                        ) : (
+                          <>
+                            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.4rem', color: PLAYER_COLORS[pIdx], letterSpacing: '0.04em', lineHeight: 1 }}>
+                              {scores[pIdx]}
+                            </div>
+                            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.6rem', color: '#8a7553', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                              points left
+                            </div>
+                          </>
                         )}
                       </motion.div>
                     )}
