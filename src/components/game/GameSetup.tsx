@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Club, GameMode } from '@/types/game';
-import { mockClubs, getRandomClub } from '@/data/mockData';
+import { mockClubs, fetchClubs, getRandomClubAsync } from '@/data/mockData';
 import { Shuffle, ArrowRight, ArrowLeft, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -34,8 +34,13 @@ export const GameSetup = ({
   const [playerNames, setPlayerNames] = useState<string[]>(getInitialPlayerNames(mode));
   const [playerCount, setPlayerCount] = useState(2);
   const [step, setStep] = useState<'club' | 'players'>('club');
+  const [clubs, setClubs] = useState<Club[]>(mockClubs);
 
-  const handleRandomClub = () => onClubSelect(getRandomClub());
+  useEffect(() => {
+    fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
+  }, []);
+
+  const handleRandomClub = async () => onClubSelect(await getRandomClubAsync());
 
   const handlePlayerNameChange = (index: number, name: string) => {
     const newNames = [...playerNames];
@@ -205,7 +210,7 @@ export const GameSetup = ({
           >
             <ScrollArea className="h-72 w-full">
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-1 pr-4">
-                {mockClubs.map((club, i) => {
+                {clubs.map((club, i) => {
                   const isSelected = selectedClub?.id === club.id;
                   return (
                     <motion.button

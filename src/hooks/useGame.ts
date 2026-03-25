@@ -98,8 +98,21 @@ export const useGame = () => {
         return { success: false, message: `Player not found: ${playerName}` };
       }
 
+      // Check if this player was already used by anyone
+      const usedPlayerIds = new Set(
+        gameState.players.flatMap(p => p.throws.map(t => t.playerId))
+      );
+      if (usedPlayerIds.has(footballPlayer.id)) {
+        setLastThrowResult({
+          type: 'invalid',
+          message: `${footballPlayer.name} already used!`,
+        });
+        setIsLoading(false);
+        return { success: false, message: `${footballPlayer.name} already used!` };
+      }
+
       const appearances = footballPlayer.appearances;
-      
+
       // Check if throw exceeds 180
       if (appearances > MAX_THROW) {
         setLastThrowResult({
@@ -159,6 +172,7 @@ export const useGame = () => {
         appearances,
         timestamp: Date.now(),
         photo: footballPlayer.photo,
+        position: footballPlayer.position,
       };
 
       setGameState((prev) => {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getPlayersForClub } from '@/data/mockData';
 
 export interface SquadPlayer {
   id: number;
@@ -111,39 +111,15 @@ export const useSquad = (teamId: string | null) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSquad = useCallback(async () => {
-    if (!teamId) {
-      setSquad([]);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error: fnError } = await supabase.functions.invoke('get-squad', {
-        body: { teamId },
-      });
-
-      if (fnError) {
-        throw fnError;
-      }
-
-      if (data?.players && data.players.length > 0) {
-        setSquad(data.players);
-      } else {
-        // Use fallback data when API fails or returns empty
-        console.log('Using fallback squad data for team:', teamId);
-        setSquad(fallbackSquads[teamId] || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch squad, using fallback:', err);
-      setError('Failed to load squad');
-      // Use fallback data on error
-      setSquad(fallbackSquads[teamId] || []);
-    } finally {
-      setIsLoading(false);
-    }
+  const fetchSquad = useCallback(() => {
+    if (!teamId) { setSquad([]); return; }
+    const players = getPlayersForClub(teamId).map(p => ({
+      id: p.id ? Number(p.id) : 0,
+      name: p.name,
+      photo: p.photo ?? '',
+      position: p.position ?? '',
+    }));
+    setSquad(players.length > 0 ? players : (fallbackSquads[teamId] ?? []));
   }, [teamId]);
 
   useEffect(() => {

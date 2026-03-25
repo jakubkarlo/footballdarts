@@ -8,6 +8,7 @@ import { ThrowHistory } from './ThrowHistory';
 import { RotateCcw, Flag, ArrowRight, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSquad } from '@/hooks/useSquad';
+import { PlayerSticker } from './PlayerSticker';
 
 interface GameBoardProps {
   gameState: GameState;
@@ -316,56 +317,53 @@ export const GameBoard = ({
         </motion.button>
       </motion.div>
 
-      {/* Throw history — styled as album page */}
-      <motion.div
-        className="max-w-md mx-auto w-full"
-        style={{
-          background: 'white',
-          borderRadius: '5px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06)',
-          overflow: 'hidden',
-        }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.26 }}
-      >
-        {/* History header band */}
-        <div
-          style={{
-            background: '#1e3a8a',
-            padding: '7px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span
-            style={{
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '0.95rem',
-              color: 'white',
-              letterSpacing: '0.08em',
-            }}
+      {/* Sticker collection */}
+      {(() => {
+        const allThrows = isMultiplayer
+          ? gameState.players.flatMap(p => p.throws.map(t => ({ throw_: t, owner: p.name })))
+          : currentPlayer.throws.map(t => ({ throw_: t, owner: '' }));
+        if (allThrows.length === 0) return null;
+        return (
+          <motion.div
+            className="max-w-2xl mx-auto w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.26 }}
           >
-            Throw History
-          </span>
-          <span
-            style={{
-              fontFamily: 'Barlow Condensed, sans-serif',
-              fontWeight: 600,
-              fontSize: '0.65rem',
-              color: 'rgba(255,255,255,0.65)',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {currentPlayer.name}
-          </span>
-        </div>
-        <div style={{ padding: '10px 14px 12px' }}>
-          <ThrowHistory throws={currentPlayer.throws} />
-        </div>
-      </motion.div>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '10px',
+            }}>
+              <div style={{ height: 2, flex: 1, background: '#b91c1c' }} />
+              <span style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 700,
+                fontSize: '0.68rem',
+                letterSpacing: '0.28em',
+                color: '#8a7553',
+                textTransform: 'uppercase',
+              }}>
+                Used Players
+              </span>
+              <div style={{ height: 2, flex: 1, background: '#b91c1c' }} />
+            </div>
+            {/* Sticker grid */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {allThrows.map(({ throw_, owner }, i) => (
+                <PlayerSticker
+                  key={throw_.playerId}
+                  throw_={throw_}
+                  index={i}
+                  ownerName={isMultiplayer ? owner : undefined}
+                />
+              ))}
+            </div>
+          </motion.div>
+        );
+      })()}
     </div>
   );
 };
