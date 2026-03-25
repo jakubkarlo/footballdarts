@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Oswald', 'sans-serif'],
-        body: ['Roboto', 'sans-serif'],
+        display: ['Bebas Neue', 'sans-serif'],
+        body: ['Barlow', 'sans-serif'],
+        condensed: ['Barlow Condensed', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

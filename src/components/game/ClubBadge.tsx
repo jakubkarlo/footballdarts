@@ -7,48 +7,75 @@ interface ClubBadgeProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+const sizeConfig = {
+  sm: { padding: '6px 12px', imgSize: 26, nameSize: '0.85rem', countrySize: '0.62rem', gap: 8 },
+  md: { padding: '10px 16px', imgSize: 38, nameSize: '1.1rem', countrySize: '0.68rem', gap: 10 },
+  lg: { padding: '14px 20px', imgSize: 52, nameSize: '1.4rem', countrySize: '0.76rem', gap: 14 },
+};
+
 export const ClubBadge = ({ club, size = 'md' }: ClubBadgeProps) => {
-  const sizeClasses = {
-    sm: 'p-2 gap-2',
-    md: 'p-4 gap-3',
-    lg: 'p-6 gap-4',
-  };
-
-  const imgSizes = {
-    sm: 'w-8 h-8',
-    md: 'w-14 h-14',
-    lg: 'w-20 h-20',
-  };
-
-  const textSizes = {
-    sm: 'text-sm',
-    md: 'text-lg',
-    lg: 'text-2xl',
-  };
+  const cfg = sizeConfig[size];
 
   return (
     <motion.div
-      className={cn(
-        'flex items-center rounded-xl bg-card/90 backdrop-blur-sm border border-border/50 shadow-lg',
-        sizeClasses[size]
-      )}
-      initial={{ opacity: 0, scale: 0.9 }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'white',
+        borderRadius: '5px',
+        padding: cfg.padding,
+        gap: cfg.gap,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.11), 0 0 0 1px rgba(0,0,0,0.06)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+      initial={{ opacity: 0, scale: 0.92 }}
       animate={{ opacity: 1, scale: 1 }}
-      whileHover={{ scale: 1.02 }}
+      whileHover={{ scale: 1.02, y: -1 }}
     >
-      <img 
-        src={club.logo} 
-        alt={club.name}
-        className={cn('object-contain', imgSizes[size])}
-        onError={(e) => {
-          e.currentTarget.src = '/placeholder.svg';
+      {/* Top accent stripe */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: '#1e3a8a',
         }}
       />
+
+      <img
+        src={club.logo}
+        alt={club.name}
+        style={{ width: cfg.imgSize, height: cfg.imgSize, objectFit: 'contain' }}
+        onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+      />
+
       <div>
-        <p className={cn('font-display font-bold text-foreground', textSizes[size])}>
+        <p
+          style={{
+            fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: cfg.nameSize,
+            color: '#1e3a8a',
+            letterSpacing: '0.04em',
+            lineHeight: 1.1,
+          }}
+        >
           {club.name}
         </p>
-        <p className="text-sm text-muted-foreground">{club.country}</p>
+        <p
+          style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 600,
+            fontSize: cfg.countrySize,
+            color: '#8a7553',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {club.country}
+        </p>
       </div>
     </motion.div>
   );

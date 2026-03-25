@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import { GameState } from '@/types/game';
 import { ScoreDisplay } from './ScoreDisplay';
 import { PlayerInput } from './PlayerInput';
 import { ThrowResult } from './ThrowResult';
 import { ThrowHistory } from './ThrowHistory';
-import { ClubBadge } from './ClubBadge';
 import { RotateCcw, Flag, ArrowRight, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSquad } from '@/hooks/useSquad';
@@ -25,6 +23,24 @@ interface GameBoardProps {
   onReset: () => void;
 }
 
+const iconBtn = {
+  fontFamily: 'Barlow Condensed, sans-serif' as const,
+  fontWeight: 700 as const,
+  fontSize: '0.78rem',
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase' as const,
+  color: '#7a6340',
+  background: 'white',
+  border: '1.5px solid #d4c4a0',
+  borderRadius: '4px',
+  padding: '7px 14px',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+};
+
 export const GameBoard = ({
   gameState,
   isLoading,
@@ -37,87 +53,176 @@ export const GameBoard = ({
   const [showInfo, setShowInfo] = useState(false);
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isMultiplayer = gameState.mode !== 'solo';
-  
+
   const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-6 bg-stadium-gradient relative">
+    <div
+      className="min-h-screen flex flex-col p-4 md:p-5 relative"
+      style={{
+        backgroundColor: '#ede3ce',
+        backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)`,
+      }}
+    >
       {/* Header */}
       <motion.div
-        className="flex items-center justify-between mb-6"
-        initial={{ opacity: 0, y: -20 }}
+        className="flex items-center justify-between mb-5"
+        initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <Button
-          variant="ghost"
+        <motion.button
           onClick={onReset}
-          className="gap-2 text-muted-foreground hover:text-foreground hover:bg-card/50"
+          style={iconBtn}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.96 }}
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw size={13} />
           New Game
-        </Button>
+        </motion.button>
 
-        {gameState.club && <ClubBadge club={gameState.club} size="sm" />}
+        {/* Club sticker in header */}
+        {gameState.club && (
+          <motion.div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'white',
+              borderRadius: '4px',
+              padding: '6px 12px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06)',
+            }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            <img
+              src={gameState.club.logo}
+              alt={gameState.club.name}
+              style={{ width: 26, height: 26, objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+            />
+            <span
+              style={{
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '1rem',
+                color: '#1e3a8a',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {gameState.club.name}
+            </span>
+          </motion.div>
+        )}
 
-        <Button
-          variant="ghost"
+        <motion.button
           onClick={() => setShowInfo(!showInfo)}
-          className="gap-2 text-muted-foreground hover:text-foreground hover:bg-card/50"
+          style={iconBtn}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.96 }}
         >
-          <Info className="w-4 h-4" />
+          <Info size={13} />
           Rules
-        </Button>
+        </motion.button>
       </motion.div>
 
-      {/* Rules info panel */}
+      {/* Rules panel */}
       {showInfo && (
         <motion.div
-          className="mb-6 p-4 bg-card/90 backdrop-blur-sm border border-border rounded-xl relative"
+          style={{
+            marginBottom: '16px',
+            padding: '14px 16px',
+            background: 'white',
+            borderRadius: '5px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06)',
+            position: 'relative',
+          }}
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
         >
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => setShowInfo(false)}
-            className="absolute top-2 right-2 h-8 w-8 p-0"
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#8a7553',
+            }}
           >
-            <X className="w-4 h-4" />
-          </Button>
-          <h3 className="font-display font-bold mb-2 text-primary">Game Rules:</h3>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Max throw value: 180 appearances</li>
-            <li>• Going below zero = BUST (lose turn)</li>
-            <li>• Exceeding 180 = invalid throw {gameState.mode === 'multiplayer-blitz' && '(disqualified)'}</li>
-            <li>• You decide when to finish - closer to zero wins!</li>
+            <X size={14} />
+          </button>
+          <div
+            style={{
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '1rem',
+              color: '#1e3a8a',
+              letterSpacing: '0.06em',
+              marginBottom: '8px',
+            }}
+          >
+            Game Rules
+          </div>
+          <ul
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontSize: '0.82rem',
+              fontWeight: 500,
+              color: '#5a4a35',
+              lineHeight: 1.6,
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+            }}
+          >
+            <li>· Max throw value: 180 appearances</li>
+            <li>· Going below zero = BUST (lose turn)</li>
+            <li>· Exceeding 180 = invalid throw{gameState.mode === 'multiplayer-blitz' && ' (disqualified)'}</li>
+            <li>· You decide when to finish — closer to zero wins!</li>
           </ul>
         </motion.div>
       )}
 
-      {/* Mode indicator */}
+      {/* Mode badge */}
       <motion.div
         className="text-center mb-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
-        <span className="px-4 py-1.5 bg-card/80 backdrop-blur-sm rounded-full text-sm text-muted-foreground border border-border/50">
+        <span
+          style={{
+            display: 'inline-block',
+            background: '#1e3a8a',
+            color: 'white',
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 700,
+            fontSize: '0.65rem',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            padding: '4px 14px',
+            borderRadius: '3px',
+          }}
+        >
           {gameState.mode === 'solo' && 'Solo Mode'}
-          {gameState.mode === 'multiplayer-turns' && 'Multiplayer - Turns'}
-          {gameState.mode === 'multiplayer-blitz' && 'Multiplayer - Blitz'}
+          {gameState.mode === 'multiplayer-turns' && 'Multiplayer · Turns'}
+          {gameState.mode === 'multiplayer-blitz' && 'Multiplayer · Blitz'}
         </span>
       </motion.div>
 
-      {/* Score displays */}
-      <div className={cn(
-        'grid gap-4 mb-6',
-        isMultiplayer ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 max-w-md mx-auto w-full'
-      )}>
+      {/* Score sticker cards */}
+      <div
+        className={cn(
+          'grid gap-3 mb-5',
+          isMultiplayer ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 max-w-xs mx-auto w-full'
+        )}
+      >
         {gameState.players.map((player, index) => (
           <ScoreDisplay
             key={player.id}
             player={player}
             isActive={index === gameState.currentPlayerIndex && !player.isBusted}
+            stickerNumber={index + 1}
             showAnimation={
               index === gameState.currentPlayerIndex
                 ? lastThrowResult?.type === 'success'
@@ -132,12 +237,12 @@ export const GameBoard = ({
       </div>
 
       {/* Throw result */}
-      <div className="mb-6 max-w-md mx-auto w-full">
+      <div className="mb-4 max-w-md mx-auto w-full">
         <ThrowResult result={lastThrowResult} />
       </div>
 
       {/* Player input */}
-      <div className="mb-6 max-w-md mx-auto w-full">
+      <div className="mb-4 max-w-md mx-auto w-full">
         <PlayerInput
           onSubmit={onThrow}
           isLoading={isLoading}
@@ -150,43 +255,116 @@ export const GameBoard = ({
 
       {/* Actions */}
       <motion.div
-        className="flex justify-center gap-4 mb-6"
-        initial={{ opacity: 0, y: 20 }}
+        className="flex justify-center gap-3 mb-5"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.18 }}
       >
         {isMultiplayer && gameState.mode === 'multiplayer-turns' && (
-          <Button
+          <motion.button
             onClick={onEndTurn}
-            variant="outline"
-            className="gap-2 border-primary text-primary hover:bg-primary/10 rounded-xl"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '10px 22px',
+              borderRadius: '5px',
+              background: 'white',
+              border: '2px solid #1e3a8a',
+              color: '#1e3a8a',
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+            }}
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
           >
             End Turn
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+            <ArrowRight size={14} />
+          </motion.button>
         )}
 
-        <Button
+        <motion.button
           onClick={onFinish}
           disabled={currentPlayer.isBusted}
-          className="gap-2 bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 rounded-xl"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px',
+            padding: '10px 22px',
+            borderRadius: '5px',
+            background: currentPlayer.isBusted ? '#a09080' : '#b91c1c',
+            color: 'white',
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 700,
+            fontSize: '0.85rem',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            cursor: currentPlayer.isBusted ? 'default' : 'pointer',
+            boxShadow: currentPlayer.isBusted ? 'none' : '0 3px 14px rgba(185,28,28,0.35)',
+            border: 'none',
+          }}
+          whileHover={!currentPlayer.isBusted ? { scale: 1.03, y: -1 } : {}}
+          whileTap={!currentPlayer.isBusted ? { scale: 0.97 } : {}}
         >
-          <Flag className="w-4 h-4" />
+          <Flag size={14} />
           Finish Game
-        </Button>
+        </motion.button>
       </motion.div>
 
-      {/* Throw history */}
+      {/* Throw history — styled as album page */}
       <motion.div
-        className="max-w-md mx-auto w-full bg-card/90 backdrop-blur-sm rounded-xl border border-border/50 p-4"
+        className="max-w-md mx-auto w-full"
+        style={{
+          background: 'white',
+          borderRadius: '5px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06)',
+          overflow: 'hidden',
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.26 }}
       >
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">
-          Throw History - {currentPlayer.name}
-        </h3>
-        <ThrowHistory throws={currentPlayer.throws} />
+        {/* History header band */}
+        <div
+          style={{
+            background: '#1e3a8a',
+            padding: '7px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '0.95rem',
+              color: 'white',
+              letterSpacing: '0.08em',
+            }}
+          >
+            Throw History
+          </span>
+          <span
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 600,
+              fontSize: '0.65rem',
+              color: 'rgba(255,255,255,0.65)',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {currentPlayer.name}
+          </span>
+        </div>
+        <div style={{ padding: '10px 14px 12px' }}>
+          <ThrowHistory throws={currentPlayer.throws} />
+        </div>
       </motion.div>
     </div>
   );

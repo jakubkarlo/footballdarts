@@ -1,9 +1,6 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import { GameMode, StartingScore } from '@/types/game';
-import { User, Users, Zap, Target, Trophy, Timer, Wifi, Plus, LogIn } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, LogIn } from 'lucide-react';
 
 interface GameMenuProps {
   selectedMode: GameMode;
@@ -15,28 +12,45 @@ interface GameMenuProps {
   onJoinOnline?: () => void;
 }
 
-const gameModes: { mode: GameMode; label: string; description: string; icon: React.ReactNode }[] = [
+const MODES: {
+  mode: GameMode;
+  label: string;
+  subtitle: string;
+  description: string;
+  number: string;
+  color: string;
+}[] = [
   {
     mode: 'solo',
-    label: 'Solo',
-    description: 'Play alone and beat your best',
-    icon: <User className="w-6 h-6" />,
+    label: 'SOLO',
+    subtitle: 'Classic Edition',
+    description: 'Play alone and beat your personal best score',
+    number: '001',
+    color: '#1e3a8a',
   },
   {
     mode: 'multiplayer-turns',
-    label: 'Multiplayer Turns',
-    description: 'Up to 4 players, take turns',
-    icon: <Users className="w-6 h-6" />,
+    label: 'TURNS',
+    subtitle: 'Multiplayer',
+    description: 'Up to 4 players taking turns locally',
+    number: '002',
+    color: '#b91c1c',
   },
   {
     mode: 'multiplayer-blitz',
-    label: 'Multiplayer Blitz',
-    description: 'All players at once - sudden death!',
-    icon: <Zap className="w-6 h-6" />,
+    label: 'BLITZ',
+    subtitle: 'Sudden Death',
+    description: 'All players play simultaneously — no mercy!',
+    number: '003',
+    color: '#92400e',
   },
 ];
 
-const startingScores: StartingScore[] = [301, 501, 701];
+const SCORES: StartingScore[] = [301, 501, 701];
+
+const stickerShadow = '0 2px 6px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.07)';
+const stickerShadowActive = (color: string) =>
+  `0 4px 20px ${color}44, 0 1px 4px rgba(0,0,0,0.16), 0 0 0 3px ${color}`;
 
 export const GameMenu = ({
   selectedMode,
@@ -50,177 +64,418 @@ export const GameMenu = ({
   const isMultiplayer = selectedMode !== 'solo';
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-20 left-10 w-32 h-32 rounded-full bg-primary/5 blur-3xl"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 4, repeat: Infinity }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-10 w-48 h-48 rounded-full bg-secondary/10 blur-3xl"
-          animate={{ scale: [1.2, 1, 1.2], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 5, repeat: Infinity }}
-        />
+    <div
+      className="min-h-screen flex flex-col overflow-hidden select-none"
+      style={{
+        backgroundImage: `
+          repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)
+        `,
+        backgroundColor: '#ede3ce',
+      }}
+    >
+      {/* Panini header band */}
+      <div
+        className="relative flex items-center justify-between px-6 py-3 overflow-hidden"
+        style={{ background: '#b91c1c' }}
+      >
+        <div className="flex items-center gap-1.5">
+          {[...Array(6)].map((_, i) => (
+            <span key={i} className="text-white/50 text-xs">★</span>
+          ))}
+        </div>
+        <motion.span
+          initial={{ opacity: 0, letterSpacing: '0.5em' }}
+          animate={{ opacity: 1, letterSpacing: '0.35em' }}
+          transition={{ duration: 0.7 }}
+          style={{
+            fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: '1.5rem',
+            color: 'white',
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          PANINI
+        </motion.span>
+        <div className="flex items-center gap-1.5">
+          {[...Array(6)].map((_, i) => (
+            <span key={i} className="text-white/50 text-xs">★</span>
+          ))}
+        </div>
       </div>
 
-      {/* Logo / Title */}
-      <motion.div
-        className="text-center mb-12 relative z-10"
-        initial={{ opacity: 0, y: -30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-8">
+
+        {/* Title */}
         <motion.div
-          className="inline-flex items-center justify-center w-28 h-28 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 border-4 border-primary/50 mb-6 shadow-2xl"
-          animate={{ rotate: [0, 5, -5, 0] }}
-          transition={{ duration: 4, repeat: Infinity }}
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: -24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <Target className="w-14 h-14 text-primary drop-shadow-lg" />
+          <motion.div
+            className="inline-flex items-center gap-2 px-5 py-1.5 rounded-full mb-5"
+            style={{
+              background: '#1e3a8a',
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 700,
+              fontSize: '0.68rem',
+              letterSpacing: '0.2em',
+              color: 'white',
+              textTransform: 'uppercase',
+            }}
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+          >
+            <span style={{ color: '#f5a623' }}>★</span>
+            Official Card Collection
+            <span style={{ color: '#f5a623' }}>★</span>
+          </motion.div>
+
+          <motion.h1
+            style={{
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: 'clamp(3.8rem, 11vw, 7.5rem)',
+              lineHeight: 0.88,
+              letterSpacing: '0.03em',
+              color: '#1e3a8a',
+            }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.14, type: 'spring', stiffness: 110 }}
+          >
+            FOOTBALL
+            <br />
+            <span style={{ color: '#b91c1c' }}>DARTS</span>
+          </motion.h1>
+
+          <motion.div
+            className="mt-5 flex items-center justify-center gap-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div style={{ height: 2, width: 44, background: '#b91c1c' }} />
+            <span
+              style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                letterSpacing: '0.22em',
+                color: '#7a6340',
+                textTransform: 'uppercase',
+              }}
+            >
+              Season 2024 · 25
+            </span>
+            <div style={{ height: 2, width: 44, background: '#b91c1c' }} />
+          </motion.div>
         </motion.div>
-        <h1 className="text-5xl md:text-7xl font-display font-bold text-foreground tracking-tight">
-          <span className="text-primary">FOOTBALL</span> DARTS
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground max-w-md mx-auto">
-          Name players and subtract their appearances to hit zero
-        </p>
-      </motion.div>
 
-      {/* Game Mode Selection */}
-      <motion.div
-        className="w-full max-w-3xl mb-8 relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h2 className="text-sm font-semibold text-primary mb-4 text-center uppercase tracking-widest flex items-center justify-center gap-2">
-          <Trophy className="w-4 h-4" />
-          Select Game Mode
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {gameModes.map(({ mode, label, description, icon }) => (
-            <motion.button
-              key={mode}
-              onClick={() => onModeSelect(mode)}
-              className={cn(
-                'relative p-6 rounded-2xl border-2 transition-all duration-300 text-left backdrop-blur-sm',
-                selectedMode === mode
-                  ? 'border-primary bg-primary/15 shadow-lg shadow-primary/20'
-                  : 'border-border/50 bg-card/80 hover:border-primary/50 hover:bg-card'
-              )}
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className={cn(
-                'mb-3 p-2 rounded-xl w-fit',
-                selectedMode === mode ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-              )}>
-                {icon}
-              </div>
-              <h3 className="font-display text-xl font-bold text-foreground">
-                {label}
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {description}
-              </p>
-              {selectedMode === mode && (
-                <motion.div
-                  className="absolute top-4 right-4 w-3 h-3 rounded-full bg-primary shadow-lg shadow-primary/50"
-                  layoutId="mode-indicator"
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              )}
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Starting Score Selection */}
-      <motion.div
-        className="w-full max-w-lg mb-8 relative z-10"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <h2 className="text-sm font-semibold text-primary mb-4 text-center uppercase tracking-widest flex items-center justify-center gap-2">
-          <Timer className="w-4 h-4" />
-          Starting Points
-        </h2>
-        <div className="flex justify-center gap-4">
-          {startingScores.map((score) => (
-            <motion.button
-              key={score}
-              onClick={() => onScoreSelect(score)}
-              className={cn(
-                'px-8 py-4 rounded-xl border-2 font-display text-2xl font-bold transition-all duration-300',
-                selectedScore === score
-                  ? 'border-primary bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30'
-                  : 'border-border/50 bg-card/80 text-foreground hover:border-primary/50'
-              )}
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {score}
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Start Buttons */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="relative z-10 flex flex-col items-center gap-4"
-      >
-        <Button
-          onClick={onStart}
-          size="lg"
-          className="px-14 py-7 text-xl font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 shadow-xl shadow-secondary/30 rounded-2xl"
+        {/* Mode sticker cards */}
+        <motion.div
+          className="w-full max-w-3xl mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
         >
-          {isMultiplayer ? 'LOCAL GAME' : 'START GAME'}
-        </Button>
-
-        {/* Online buttons for multiplayer modes */}
-        {isMultiplayer && onCreateOnline && onJoinOnline && (
-          <div className="flex gap-4">
-            <Button
-              onClick={onCreateOnline}
-              variant="outline"
-              className="gap-2 px-6 py-6 rounded-xl border-primary text-primary hover:bg-primary/10"
-            >
-              <Plus className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-bold">Create Online</div>
-                <div className="text-xs opacity-70">Host a game</div>
-              </div>
-            </Button>
-            <Button
-              onClick={onJoinOnline}
-              variant="outline"
-              className="gap-2 px-6 py-6 rounded-xl border-primary text-primary hover:bg-primary/10"
-            >
-              <LogIn className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-bold">Join Online</div>
-                <div className="text-xs opacity-70">Enter code</div>
-              </div>
-            </Button>
+          <div
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 700,
+              fontSize: '0.68rem',
+              letterSpacing: '0.28em',
+              color: '#8a7553',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+              marginBottom: '0.8rem',
+            }}
+          >
+            — Select Edition —
           </div>
-        )}
-      </motion.div>
 
-      {/* Rules hint */}
-      <motion.p
-        className="mt-8 text-sm text-muted-foreground text-center max-w-lg relative z-10 bg-card/50 backdrop-blur-sm px-6 py-3 rounded-full border border-border/30"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        🎯 Max throw value: 180 appearances. Going below zero = BUST!
-      </motion.p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {MODES.map(({ mode, label, subtitle, description, number, color }, i) => {
+              const isSelected = selectedMode === mode;
+              return (
+                <motion.button
+                  key={mode}
+                  onClick={() => onModeSelect(mode)}
+                  className="text-left"
+                  style={{
+                    background: 'white',
+                    borderRadius: '5px',
+                    boxShadow: isSelected ? stickerShadowActive(color) : stickerShadow,
+                    transform: isSelected ? 'translateY(-3px)' : 'none',
+                    transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    border: 'none',
+                  }}
+                  whileHover={{ y: -3 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.24 + i * 0.07 }}
+                >
+                  {/* Colored header */}
+                  <div style={{ background: color, padding: '10px 14px 8px', position: 'relative' }}>
+                    <div
+                      style={{
+                        fontFamily: 'Bebas Neue, sans-serif',
+                        fontSize: '1.65rem',
+                        color: 'white',
+                        lineHeight: 1,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {label}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '0.65rem',
+                        color: 'rgba(255,255,255,0.68)',
+                        letterSpacing: '0.14em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {subtitle}
+                    </div>
+                    {/* Sticker number */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 10,
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontWeight: 800,
+                        fontSize: '0.6rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      #{number}
+                    </div>
+                  </div>
+
+                  {/* Card body */}
+                  <div style={{ padding: '10px 14px 14px' }}>
+                    <p
+                      style={{
+                        fontFamily: 'Barlow, sans-serif',
+                        fontSize: '0.82rem',
+                        color: '#4a3f2e',
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {description}
+                    </p>
+                    {isSelected && (
+                      <motion.div
+                        style={{
+                          marginTop: '8px',
+                          fontFamily: 'Barlow Condensed, sans-serif',
+                          fontWeight: 700,
+                          fontSize: '0.65rem',
+                          letterSpacing: '0.15em',
+                          textTransform: 'uppercase',
+                          color: color,
+                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        ✓ SELECTED
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Foil shimmer on selected */}
+                  {isSelected && (
+                    <div
+                      className="foil-shimmer"
+                      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+                    />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Score circles */}
+        <motion.div
+          className="w-full max-w-sm mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.34 }}
+        >
+          <div
+            style={{
+              fontFamily: 'Barlow Condensed, sans-serif',
+              fontWeight: 700,
+              fontSize: '0.68rem',
+              letterSpacing: '0.28em',
+              color: '#8a7553',
+              textTransform: 'uppercase',
+              textAlign: 'center',
+              marginBottom: '0.8rem',
+            }}
+          >
+            — Starting Points —
+          </div>
+
+          <div className="flex justify-center gap-5">
+            {SCORES.map((score) => {
+              const isSelected = selectedScore === score;
+              return (
+                <motion.button
+                  key={score}
+                  onClick={() => onScoreSelect(score)}
+                  style={{
+                    width: 82,
+                    height: 82,
+                    borderRadius: '50%',
+                    background: isSelected ? '#1e3a8a' : 'white',
+                    color: isSelected ? 'white' : '#1e3a8a',
+                    fontFamily: 'Bebas Neue, sans-serif',
+                    fontSize: '1.65rem',
+                    letterSpacing: '0.03em',
+                    boxShadow: isSelected
+                      ? '0 4px 18px rgba(30,58,138,0.4), 0 0 0 3px #1e3a8a'
+                      : stickerShadow,
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  whileHover={{ scale: 1.08, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {score}
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Action buttons */}
+        <motion.div
+          className="flex flex-col items-center gap-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.42 }}
+        >
+          <motion.button
+            onClick={onStart}
+            style={{
+              background: '#1e3a8a',
+              color: 'white',
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '1.55rem',
+              letterSpacing: '0.18em',
+              padding: '14px 56px',
+              borderRadius: '5px',
+              boxShadow: '0 4px 18px rgba(30,58,138,0.4), 0 2px 4px rgba(0,0,0,0.18)',
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+            whileHover={{
+              scale: 1.04,
+              boxShadow: '0 7px 28px rgba(30,58,138,0.5), 0 2px 8px rgba(0,0,0,0.2)',
+            }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+            {isMultiplayer ? 'LOCAL GAME' : 'KICK OFF'}
+          </motion.button>
+
+          {isMultiplayer && onCreateOnline && onJoinOnline && (
+            <div className="flex gap-3">
+              <motion.button
+                onClick={onCreateOnline}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  background: 'white',
+                  color: '#1e3a8a',
+                  border: '2px solid #1e3a8a',
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  boxShadow: stickerShadow,
+                }}
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <Plus size={14} />
+                CREATE ONLINE
+              </motion.button>
+              <motion.button
+                onClick={onJoinOnline}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  background: 'white',
+                  color: '#b91c1c',
+                  border: '2px solid #b91c1c',
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  boxShadow: stickerShadow,
+                }}
+                whileHover={{ scale: 1.03, y: -1 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <LogIn size={14} />
+                JOIN ONLINE
+              </motion.button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Rules hint */}
+        <motion.p
+          className="mt-10 text-center"
+          style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 600,
+            fontSize: '0.72rem',
+            letterSpacing: '0.12em',
+            color: '#8a7553',
+            textTransform: 'uppercase',
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          Max throw: 180 appearances · Bust if score drops below zero
+        </motion.p>
+      </div>
+
+      {/* Bottom stripe */}
+      <div
+        style={{
+          height: 8,
+          background: 'linear-gradient(90deg, #b91c1c 0%, #1e3a8a 50%, #b91c1c 100%)',
+        }}
+      />
     </div>
   );
 };
