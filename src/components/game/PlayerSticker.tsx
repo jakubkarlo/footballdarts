@@ -5,6 +5,7 @@ interface PlayerStickerProps {
   throw_: Throw;
   index: number;
   ownerName?: string;
+  hidden?: boolean; // hides player identity — shows only appearances value
 }
 
 const POSITION_COLORS: Record<string, string> = {
@@ -29,8 +30,8 @@ function positionAbbr(position?: string) {
   return 'FW';
 }
 
-export const PlayerSticker = ({ throw_, index, ownerName }: PlayerStickerProps) => {
-  const color = positionColor(throw_.position);
+export const PlayerSticker = ({ throw_, index, ownerName, hidden = false }: PlayerStickerProps) => {
+  const color = hidden ? '#5a4a35' : positionColor(throw_.position);
   const abbr  = positionAbbr(throw_.position);
   const num   = String(index + 1).padStart(3, '0');
 
@@ -49,7 +50,7 @@ export const PlayerSticker = ({ throw_, index, ownerName }: PlayerStickerProps) 
       }}
     >
       {/* Color header band */}
-      <div style={{ background: color, padding: '4px 6px 3px', position: 'relative' }}>
+      <div style={{ background: color, padding: '4px 6px 3px' }}>
         <div style={{
           fontFamily: 'Barlow Condensed, sans-serif',
           fontWeight: 800,
@@ -66,22 +67,32 @@ export const PlayerSticker = ({ throw_, index, ownerName }: PlayerStickerProps) 
           letterSpacing: '0.06em',
           lineHeight: 1,
         }}>
-          {abbr}
+          {hidden ? '???' : abbr}
         </div>
       </div>
 
-      {/* Photo */}
-      <div style={{ position: 'relative', background: '#f0ebe0' }}>
-        <img
-          src={throw_.photo || 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg'}
-          alt={throw_.playerName}
-          style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block' }}
-          onError={(e) => {
-            e.currentTarget.src = 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg';
-          }}
-        />
-        {/* foil shimmer */}
-        <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+      {/* Photo or mystery block */}
+      <div style={{ position: 'relative', background: hidden ? '#e8e0d4' : '#f0ebe0', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {hidden ? (
+          <div style={{
+            fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: '1.8rem',
+            color: '#c4b89a',
+            lineHeight: 1,
+          }}>?</div>
+        ) : (
+          <>
+            <img
+              src={throw_.photo || 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg'}
+              alt={throw_.playerName}
+              style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }}
+              onError={(e) => {
+                e.currentTarget.src = 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg';
+              }}
+            />
+            <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+          </>
+        )}
       </div>
 
       {/* Info */}
@@ -89,15 +100,16 @@ export const PlayerSticker = ({ throw_, index, ownerName }: PlayerStickerProps) 
         <div style={{
           fontFamily: 'Bebas Neue, sans-serif',
           fontSize: '0.7rem',
-          color: '#1e1a14',
+          color: hidden ? '#a09070' : '#1e1a14',
           letterSpacing: '0.03em',
           lineHeight: 1.1,
           marginBottom: 2,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
+          fontStyle: hidden ? 'italic' : 'normal',
         }}>
-          {throw_.playerName.split(' ').pop()}
+          {hidden ? '???' : throw_.playerName.split(' ').pop()}
         </div>
         <div style={{
           fontFamily: 'Bebas Neue, sans-serif',

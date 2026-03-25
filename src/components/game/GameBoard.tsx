@@ -319,9 +319,16 @@ export const GameBoard = ({
 
       {/* Sticker collection */}
       {(() => {
+        const isTurns = gameState.mode === 'multiplayer-turns';
         const allThrows = isMultiplayer
-          ? gameState.players.flatMap(p => p.throws.map(t => ({ throw_: t, owner: p.name })))
-          : currentPlayer.throws.map(t => ({ throw_: t, owner: '' }));
+          ? gameState.players.flatMap((p, pIdx) =>
+              p.throws.map(t => ({
+                throw_: t,
+                owner: p.name,
+                isCurrentPlayer: pIdx === gameState.currentPlayerIndex,
+              }))
+            )
+          : currentPlayer.throws.map(t => ({ throw_: t, owner: '', isCurrentPlayer: true }));
         if (allThrows.length === 0) return null;
         return (
           <motion.div
@@ -331,12 +338,7 @@ export const GameBoard = ({
             transition={{ delay: 0.26 }}
           >
             {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '10px',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div style={{ height: 2, flex: 1, background: '#b91c1c' }} />
               <span style={{
                 fontFamily: 'Barlow Condensed, sans-serif',
@@ -352,12 +354,13 @@ export const GameBoard = ({
             </div>
             {/* Sticker grid */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {allThrows.map(({ throw_, owner }, i) => (
+              {allThrows.map(({ throw_, owner, isCurrentPlayer }, i) => (
                 <PlayerSticker
-                  key={throw_.playerId}
+                  key={throw_.playerId + owner}
                   throw_={throw_}
                   index={i}
                   ownerName={isMultiplayer ? owner : undefined}
+                  hidden={isTurns && !isCurrentPlayer}
                 />
               ))}
             </div>

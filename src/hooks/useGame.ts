@@ -98,9 +98,9 @@ export const useGame = () => {
         return { success: false, message: `Player not found: ${playerName}` };
       }
 
-      // Check if this player was already used by anyone
+      // In turns mode each player has their own secret pool — only block reuse within same player
       const usedPlayerIds = new Set(
-        gameState.players.flatMap(p => p.throws.map(t => t.playerId))
+        gameState.players[gameState.currentPlayerIndex].throws.map(t => t.playerId)
       );
       if (usedPlayerIds.has(footballPlayer.id)) {
         setLastThrowResult({
