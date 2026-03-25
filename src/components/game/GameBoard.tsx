@@ -261,33 +261,6 @@ export const GameBoard = ({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
       >
-        {isMultiplayer && gameState.mode === 'multiplayer-turns' && (
-          <motion.button
-            onClick={onEndTurn}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '10px 22px',
-              borderRadius: '5px',
-              background: 'white',
-              border: '2px solid #1e3a8a',
-              color: '#1e3a8a',
-              fontFamily: 'Barlow Condensed, sans-serif',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-            }}
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-          >
-            End Turn
-            <ArrowRight size={14} />
-          </motion.button>
-        )}
 
         <motion.button
           onClick={onFinish}

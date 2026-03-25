@@ -191,11 +191,26 @@ export const useGame = () => {
         value: appearances,
       });
 
+      // In turns mode one throw = one turn, auto-advance after short delay
+      if (gameState.mode === 'multiplayer-turns') {
+        setTimeout(() => {
+          setGameState((prev) => {
+            const nextIndex = (prev.currentPlayerIndex + 1) % prev.players.length;
+            return {
+              ...prev,
+              players: prev.players.map((p, i) => ({ ...p, isActive: i === nextIndex })),
+              currentPlayerIndex: nextIndex,
+            };
+          });
+          setLastThrowResult(null);
+        }, 1200);
+      }
+
       setIsLoading(false);
-      return { 
-        success: true, 
+      return {
+        success: true,
         appearances,
-        message: `${footballPlayer.name} - ${appearances} appearances` 
+        message: `${footballPlayer.name} - ${appearances} appearances`
       };
     } catch (error) {
       setIsLoading(false);
