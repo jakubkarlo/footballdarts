@@ -8,6 +8,7 @@ import { GameBoard } from '@/components/game/GameBoard';
 import { GameResult } from '@/components/game/GameResult';
 import { BlitzGameBoard } from '@/components/game/BlitzGameBoard';
 import { BlitzResult } from '@/components/game/BlitzResult';
+import { TurnsGameBoard } from '@/components/game/TurnsGameBoard';
 import { OnlineLobby } from '@/components/game/OnlineLobby';
 import { CreateGameModal } from '@/components/game/CreateGameModal';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
@@ -162,7 +163,7 @@ const Index = () => {
             </motion.div>
           )}
 
-          {gameState.phase === 'playing' && !isBlitzMode && (
+          {gameState.phase === 'playing' && gameState.mode === 'solo' && (
             <motion.div
               key="playing"
               initial={{ opacity: 0 }}
@@ -176,6 +177,20 @@ const Index = () => {
                 onThrow={handleThrow}
                 onEndTurn={endTurn}
                 onFinish={handleFinish}
+                onReset={resetGame}
+              />
+            </motion.div>
+          )}
+
+          {gameState.phase === 'playing' && gameState.mode === 'multiplayer-turns' && (
+            <motion.div
+              key="turns-playing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <TurnsGameBoard
+                gameState={gameState}
                 onReset={resetGame}
               />
             </motion.div>

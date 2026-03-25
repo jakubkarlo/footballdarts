@@ -1,17 +1,19 @@
 import { motion } from 'framer-motion';
 import { Throw } from '@/types/game';
 
+const BBC_PHOTO = 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg';
+
 interface PlayerStickerProps {
   throw_: Throw;
   index: number;
   ownerName?: string;
-  hidden?: boolean; // hides player identity — shows only appearances value
+  hidden?: boolean;
 }
 
 const POSITION_COLORS: Record<string, string> = {
   goalkeeper: '#15803d',
   defender:   '#1e3a8a',
-  midfielder: '#92400e',
+  midfielder: '#b45309',
   forward:    '#b91c1c',
   attacker:   '#b91c1c',
 };
@@ -30,119 +32,179 @@ function positionAbbr(position?: string) {
   return 'FW';
 }
 
-export const PlayerSticker = ({ throw_, index, ownerName, hidden = false }: PlayerStickerProps) => {
-  const color = hidden ? '#5a4a35' : positionColor(throw_.position);
-  const abbr  = positionAbbr(throw_.position);
-  const num   = String(index + 1).padStart(3, '0');
+export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }: PlayerStickerProps & { bust?: boolean }) => {
+  const color   = hidden ? '#4a3d2e' : positionColor(throw_.position);
+  const abbr    = positionAbbr(throw_.position);
+  const num     = String(index + 1).padStart(3, '0');
+  const surname = throw_.playerName.split(' ').slice(-1)[0] ?? throw_.playerName;
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.6, rotate: -4 }}
+      initial={{ opacity: 0, scale: 0.55, rotate: -6 }}
       animate={{ opacity: 1, scale: 1, rotate: 0 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 22, delay: index * 0.04 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 20, delay: index * 0.045 }}
       style={{
-        width: 80,
-        background: 'white',
-        borderRadius: 4,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.07)',
-        overflow: 'hidden',
+        width: 90,
         flexShrink: 0,
+        background: 'white',
+        borderRadius: 6,
+        padding: 3,
+        boxShadow: '0 5px 18px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.14)',
       }}
     >
-      {/* Color header band */}
-      <div style={{ background: color, padding: '4px 6px 3px' }}>
-        <div style={{
-          fontFamily: 'Barlow Condensed, sans-serif',
-          fontWeight: 800,
-          fontSize: '0.55rem',
-          color: 'rgba(255,255,255,0.55)',
-          letterSpacing: '0.05em',
-        }}>
-          #{num}
-        </div>
-        <div style={{
-          fontFamily: 'Bebas Neue, sans-serif',
-          fontSize: '0.75rem',
-          color: 'white',
-          letterSpacing: '0.06em',
-          lineHeight: 1,
-        }}>
-          {hidden ? '???' : abbr}
-        </div>
-      </div>
+      {/* Inner card — rounded clip */}
+      <div style={{ borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
 
-      {/* Photo or mystery block */}
-      <div style={{ position: 'relative', background: hidden ? '#e8e0d4' : '#f0ebe0', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {hidden ? (
-          <div style={{
-            fontFamily: 'Bebas Neue, sans-serif',
-            fontSize: '1.8rem',
-            color: '#c4b89a',
-            lineHeight: 1,
-          }}>?</div>
-        ) : (
-          <>
-            <img
-              src={throw_.photo || 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg'}
-              alt={throw_.playerName}
-              style={{ width: '100%', height: 64, objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }}
-              onError={(e) => {
-                e.currentTarget.src = 'https://ichef.bbci.co.uk/ace/standard/2560/cpsprodpb/d14d/live/6eac51d0-27dc-11ef-9588-6d96e597ad15.jpg';
-              }}
-            />
-            <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
-          </>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ padding: '4px 5px 5px' }}>
+        {/* ── Photo area ───────────────────────────────────────────── */}
         <div style={{
-          fontFamily: 'Bebas Neue, sans-serif',
-          fontSize: '0.7rem',
-          color: hidden ? '#a09070' : '#1e1a14',
-          letterSpacing: '0.03em',
-          lineHeight: 1.1,
-          marginBottom: 2,
-          whiteSpace: 'nowrap',
+          position: 'relative',
+          height: 90,
+          background: hidden
+            ? 'repeating-linear-gradient(45deg, #2e241a 0px, #2e241a 4px, #241c14 4px, #241c14 8px)'
+            : '#1a120a',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          fontStyle: hidden ? 'italic' : 'normal',
         }}>
-          {hidden ? '???' : throw_.playerName.split(' ').pop()}
-        </div>
-        <div style={{
-          fontFamily: 'Bebas Neue, sans-serif',
-          fontSize: '1.1rem',
-          color,
-          lineHeight: 1,
-          letterSpacing: '0.02em',
-        }}>
-          {throw_.appearances}
-        </div>
-        <div style={{
-          fontFamily: 'Barlow Condensed, sans-serif',
-          fontWeight: 600,
-          fontSize: '0.5rem',
-          color: '#8a7553',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}>
-          appearances
-        </div>
-        {ownerName && (
+          {/* Photo */}
+          {!hidden && (
+            <img
+              src={throw_.photo || BBC_PHOTO}
+              alt={throw_.playerName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onError={(e) => { e.currentTarget.src = BBC_PHOTO; }}
+            />
+          )}
+
+          {/* Bottom gradient for name legibility */}
           <div style={{
-            marginTop: 2,
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 44,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
+          }} />
+
+          {/* Position badge — top left */}
+          <div style={{
+            position: 'absolute', top: 5, left: 5,
+            background: hidden ? 'rgba(255,255,255,0.12)' : color,
+            borderRadius: 2,
+            padding: '2px 5px',
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 800,
+            fontSize: '0.52rem',
+            color: 'white',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+          }}>
+            {hidden ? '?' : abbr}
+          </div>
+
+          {/* Sticker number — top right */}
+          <div style={{
+            position: 'absolute', top: 5, right: 5,
             fontFamily: 'Barlow Condensed, sans-serif',
             fontWeight: 700,
-            fontSize: '0.5rem',
+            fontSize: '0.48rem',
+            color: 'rgba(255,255,255,0.45)',
+            letterSpacing: '0.04em',
+          }}>
+            #{num}
+          </div>
+
+          {/* Player surname — bottom overlay */}
+          <div style={{
+            position: 'absolute', bottom: 5, left: 5, right: 5,
+            fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: hidden ? '0.85rem' : '0.82rem',
+            color: hidden ? 'rgba(255,255,255,0.28)' : 'white',
+            letterSpacing: '0.06em',
+            lineHeight: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontStyle: hidden ? 'italic' : 'normal',
+            textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+          }}>
+            {hidden ? '???' : surname}
+          </div>
+
+          {/* Foil shimmer */}
+          {!hidden && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+
+          {/* Hidden "?" watermark */}
+          {hidden && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'Bebas Neue, sans-serif',
+              fontSize: '3rem',
+              color: 'rgba(255,255,255,0.08)',
+              pointerEvents: 'none',
+            }}>?</div>
+          )}
+        </div>
+
+        {/* Bust overlay */}
+        {(bust ?? throw_.busted) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: index * 0.045 + 0.2 }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(185,28,28,0.55)', zIndex: 10, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.08em', textShadow: '0 2px 10px rgba(0,0,0,0.6)' }}>✕</div>
+          </motion.div>
+        )}
+
+        {/* ── Stat footer ──────────────────────────────────────────── */}
+        <div style={{
+          background: color,
+          padding: '5px 6px 5px',
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'center',
+          gap: 4,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* subtle diagonal texture */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 6px)',
+            pointerEvents: 'none',
+          }} />
+          <span style={{
+            fontFamily: 'Bebas Neue, sans-serif',
+            fontSize: '1.65rem',
             color: 'white',
-            background: color,
-            borderRadius: 2,
-            padding: '1px 3px',
+            lineHeight: 1,
+            letterSpacing: '0.02em',
+          }}>
+            {throw_.appearances}
+          </span>
+          <span style={{
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 700,
+            fontSize: '0.44rem',
+            color: 'rgba(255,255,255,0.6)',
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            display: 'inline-block',
+            paddingBottom: 2,
+          }}>
+            apps
+          </span>
+        </div>
+
+        {/* ── Owner tag ─────────────────────────────────────────────── */}
+        {ownerName && (
+          <div style={{
+            background: 'white',
+            padding: '2px 5px 3px',
+            textAlign: 'center',
+            fontFamily: 'Barlow Condensed, sans-serif',
+            fontWeight: 800,
+            fontSize: '0.48rem',
+            color: color,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
           }}>
             {ownerName}
           </div>

@@ -32,6 +32,7 @@ export interface Throw {
   timestamp: number;
   photo?: string;
   position?: string;
+  busted?: boolean;
 }
 
 export interface GamePlayer {
