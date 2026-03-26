@@ -206,8 +206,8 @@ export const GameSetup = ({
             </div>
           </div>
 
-          {/* Allow Misses toggle */}
-          <div className="mb-6">
+          {/* Allow Misses toggle — only for Turns mode */}
+          {mode !== 'multiplayer-blitz' && <div className="mb-6">
             <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
               Allow Misses
             </div>
@@ -236,7 +236,7 @@ export const GameSetup = ({
                 ? 'Miss = lose 1 life (3 total). Lose all → eliminated.'
                 : 'Miss = eliminated at end of turn.'}
             </div>
-          </div>
+          </div>}
 
           <motion.button
             onClick={() => setStep('club')}
@@ -371,6 +371,61 @@ export const GameSetup = ({
             )}
           </motion.div>
 
+          {/* Next */}
+          {selectedClub && (
+            <motion.div
+              className="mb-5"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {hidePlayerNames ? (
+                <motion.button
+                  onClick={() => onStart([], allowMisses)}
+                  style={{
+                    background: '#1e3a8a',
+                    color: 'white',
+                    fontFamily: 'Bebas Neue, sans-serif',
+                    fontSize: '1.4rem',
+                    letterSpacing: '0.15em',
+                    padding: '12px 40px',
+                    borderRadius: '5px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
+                  }}
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  DONE
+                </motion.button>
+              ) : (
+                <motion.button
+                  onClick={() => setStep('players')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: '#1e3a8a',
+                    color: 'white',
+                    fontFamily: 'Bebas Neue, sans-serif',
+                    fontSize: '1.4rem',
+                    letterSpacing: '0.15em',
+                    padding: '12px 40px',
+                    borderRadius: '5px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
+                  }}
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  NEXT
+                  <ArrowRight size={18} />
+                </motion.button>
+              )}
+            </motion.div>
+          )}
+
           {/* League filters */}
           <motion.div
             className="flex flex-wrap gap-2 mb-4"
@@ -434,7 +489,7 @@ export const GameSetup = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18 }}
           >
-            <ScrollArea className="h-[440px] w-full">
+            <ScrollArea className="h-[calc(100dvh-420px)] min-h-[200px] w-full">
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-1 pr-4">
                 {clubs.map((club, i) => {
                   if (leagueFilter && club.country !== leagueFilter) return null;
@@ -503,60 +558,6 @@ export const GameSetup = ({
             </ScrollArea>
           </motion.div>
 
-          {/* Next */}
-          {selectedClub && (
-            <motion.div
-              className="mt-8"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {hidePlayerNames ? (
-                <motion.button
-                  onClick={() => onStart([], allowMisses)}
-                  style={{
-                    background: '#1e3a8a',
-                    color: 'white',
-                    fontFamily: 'Bebas Neue, sans-serif',
-                    fontSize: '1.4rem',
-                    letterSpacing: '0.15em',
-                    padding: '12px 40px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  DONE
-                </motion.button>
-              ) : (
-                <motion.button
-                  onClick={() => setStep('players')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: '#1e3a8a',
-                    color: 'white',
-                    fontFamily: 'Bebas Neue, sans-serif',
-                    fontSize: '1.4rem',
-                    letterSpacing: '0.15em',
-                    padding: '12px 40px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  NEXT
-                  <ArrowRight size={18} />
-                </motion.button>
-              )}
-            </motion.div>
-          )}
         </>
       ) : (
         <>
