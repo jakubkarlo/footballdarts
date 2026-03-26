@@ -10,7 +10,7 @@ import { BlitzGameBoard } from '@/components/game/BlitzGameBoard';
 import { BlitzResult } from '@/components/game/BlitzResult';
 import { TurnsGameBoard } from '@/components/game/TurnsGameBoard';
 import { OnlineLobby } from '@/components/game/OnlineLobby';
-import { CreateGameModal } from '@/components/game/CreateGameModal';
+import { CreateOnlineScreen } from '@/components/game/CreateOnlineScreen';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GameMode, StartingScore, Club } from '@/types/game';
@@ -50,7 +50,7 @@ const Index = () => {
     leaveGame,
   } = useOnlineGame();
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateOnline, setShowCreateOnline] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
   const handleThrow = async (playerName: string) => {
@@ -63,7 +63,7 @@ const Index = () => {
   };
 
   const handleCreateOnline = () => {
-    setShowCreateModal(true);
+    setShowCreateOnline(true);
   };
 
   const handleJoinOnline = () => {
@@ -78,7 +78,7 @@ const Index = () => {
   ) => {
     const result = await createGame(mode, startingScore, maxPlayers, playerName);
     if (result) {
-      setShowCreateModal(false);
+      setShowCreateOnline(false);
     }
   };
 
@@ -127,7 +127,7 @@ const Index = () => {
       
       <div className="relative z-10">
         <AnimatePresence mode="wait">
-          {gameState.phase === 'menu' && (
+          {gameState.phase === 'menu' && !showCreateOnline && (
             <motion.div
               key="menu"
               initial={{ opacity: 0 }}
@@ -136,12 +136,27 @@ const Index = () => {
             >
               <GameMenu
                 selectedMode={gameState.mode}
-                selectedScore={gameState.startingScore}
                 onModeSelect={setMode}
-                onScoreSelect={setStartingScore}
                 onStart={goToSetup}
                 onCreateOnline={handleCreateOnline}
                 onJoinOnline={handleJoinOnline}
+              />
+            </motion.div>
+          )}
+
+          {gameState.phase === 'menu' && showCreateOnline && (
+            <motion.div
+              key="create-online"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
+            >
+              <CreateOnlineScreen
+                isLoading={isOnlineLoading}
+                error={onlineError}
+                onBack={() => setShowCreateOnline(false)}
+                onCreate={handleCreateGame}
               />
             </motion.div>
           )}
@@ -155,7 +170,10 @@ const Index = () => {
             >
               <GameSetup
                 mode={gameState.mode}
+                selectedScore={gameState.startingScore}
                 selectedClub={gameState.club}
+                onModeSelect={setMode}
+                onScoreSelect={setStartingScore}
                 onClubSelect={setClub}
                 onStart={startGame}
                 onBack={resetGame}
@@ -244,15 +262,6 @@ const Index = () => {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Modals */}
-      <CreateGameModal
-        isOpen={showCreateModal}
-        isLoading={isOnlineLoading}
-        error={onlineError}
-        onClose={() => setShowCreateModal(false)}
-        onCreate={handleCreateGame}
-      />
 
       <JoinGameModal
         isOpen={showJoinModal}

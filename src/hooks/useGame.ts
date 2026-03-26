@@ -23,7 +23,7 @@ export interface BlitzResult {
 
 export const useGame = () => {
   const [gameState, setGameState] = useState<GameState>({
-    mode: 'solo',
+    mode: 'multiplayer-turns',
     startingScore: 501,
     club: null,
     players: [],

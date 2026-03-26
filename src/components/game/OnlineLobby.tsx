@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { OnlineGameSession, GameMode, StartingScore, Club } from '@/types/game';
-import { Users, Copy, Check, ArrowLeft, Play, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { OnlineGameSession, Club } from '@/types/game';
+import { Users, Copy, Check, ArrowLeft, Play, Loader2, Wifi } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ClubBadge } from './ClubBadge';
 import { GameSetup } from './GameSetup';
@@ -30,7 +29,7 @@ export const OnlineLobby = ({
   onLeave,
 }: OnlineLobbyProps) => {
   const [copied, setCopied] = useState(false);
-  const [showClubSelect, setShowClubSelect] = useState(false);
+  const [phase, setPhase] = useState<'waiting' | 'club'>('waiting');
 
   const copyCode = () => {
     navigator.clipboard.writeText(session.code);
@@ -38,24 +37,51 @@ export const OnlineLobby = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const canStart = session.players.length >= 2 && session.club !== null && isHost;
+  const enoughPlayers = session.players.length >= 2;
 
-  if (showClubSelect && isHost) {
+  // Host: club selection step
+  if (phase === 'club' && isHost) {
     return (
       <GameSetup
         mode={session.mode}
         selectedClub={session.club}
         onClubSelect={(club) => {
           onSetClub(club);
-          setShowClubSelect(false);
         }}
-        onStart={() => setShowClubSelect(false)}
-        onBack={() => setShowClubSelect(false)}
+        onStart={onStartGame}
+        onBack={() => setPhase('waiting')}
         hidePlayerNames
       />
     );
   }
 
+  // Non-host waiting for club selection
+  if (phase === 'club' && !isHost) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
+        <motion.div
+          className="w-full max-w-md text-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <h2 className="text-2xl font-display font-bold mb-2">Get Ready</h2>
+          <p className="text-muted-foreground">Host is selecting the club…</p>
+          {session.club && (
+            <motion.div
+              className="flex justify-center mt-6"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <ClubBadge club={session.club} size="lg" />
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Waiting lobby
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
       <motion.div
@@ -117,34 +143,6 @@ export const OnlineLobby = ({
           </span>
         </div>
 
-        {/* Club Selection */}
-        {session.club ? (
-          <div className="flex justify-center mb-6">
-            <div 
-              className={cn(
-                "flex items-center gap-3 px-4 py-2 bg-card/80 rounded-xl border border-border/50",
-                isHost && "cursor-pointer hover:border-primary/50"
-              )}
-              onClick={() => isHost && setShowClubSelect(true)}
-            >
-              <ClubBadge club={session.club} size="sm" />
-              {isHost && <span className="text-xs text-muted-foreground">(click to change)</span>}
-            </div>
-          </div>
-        ) : isHost ? (
-          <Button
-            variant="outline"
-            onClick={() => setShowClubSelect(true)}
-            className="w-full mb-6 h-14 rounded-xl border-dashed"
-          >
-            Select Club
-          </Button>
-        ) : (
-          <p className="text-center text-muted-foreground mb-6">
-            Waiting for host to select a club...
-          </p>
-        )}
-
         {/* Players */}
         <div className="bg-card/90 backdrop-blur-sm rounded-2xl border border-border/50 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
@@ -160,8 +158,8 @@ export const OnlineLobby = ({
                 key={player.id}
                 className={cn(
                   'flex items-center justify-between p-4 rounded-xl border',
-                  player.id === myPlayerId 
-                    ? 'bg-primary/10 border-primary/30' 
+                  player.id === myPlayerId
+                    ? 'bg-primary/10 border-primary/30'
                     : 'bg-muted/30 border-border/30'
                 )}
                 initial={{ opacity: 0, x: -20 }}
@@ -196,47 +194,45 @@ export const OnlineLobby = ({
                 className="flex items-center justify-center p-4 rounded-xl border border-dashed border-border/30 text-muted-foreground"
               >
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Waiting for player...
+                Waiting for player…
               </div>
             ))}
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm text-center">
             {error}
           </div>
         )}
 
-        {/* Start Button */}
+        {/* Action */}
         {isHost ? (
-          <Button
-            onClick={onStartGame}
-            disabled={!canStart || isLoading}
-            className="w-full h-14 text-lg font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 rounded-xl"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Play className="w-5 h-5 mr-2" />
-                Start Game
-              </>
+          <>
+            <Button
+              onClick={() => setPhase('club')}
+              disabled={!enoughPlayers || isLoading}
+              className="w-full h-14 text-lg font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 rounded-xl"
+            >
+              {isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Play className="w-5 h-5 mr-2" />
+                  Proceed
+                </>
+              )}
+            </Button>
+            {!enoughPlayers && (
+              <p className="text-center text-muted-foreground text-sm mt-4">
+                Need at least 2 players to proceed
+              </p>
             )}
-          </Button>
+          </>
         ) : (
           <div className="text-center text-muted-foreground">
-            Waiting for host to start the game...
+            Waiting for host to start the game…
           </div>
-        )}
-
-        {!canStart && isHost && (
-          <p className="text-center text-muted-foreground text-sm mt-4">
-            {session.players.length < 2 
-              ? 'Need at least 2 players to start' 
-              : 'Select a club to start the game'}
-          </p>
         )}
       </motion.div>
     </div>
