@@ -12,6 +12,7 @@ const createPlayer = (id: string, name: string, startingScore: StartingScore): G
   isActive: false,
   isBusted: false,
   isFinished: false,
+  lives: 3,
 });
 
 export interface BlitzResult {
@@ -35,13 +36,14 @@ export const useGame = () => {
     gameCode: null,
     sessionId: null,
     myPlayerIndex: null,
+    allowMisses: false,
   });
 
   const [blitzResult, setBlitzResult] = useState<BlitzResult | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [lastThrowResult, setLastThrowResult] = useState<{
-    type: 'success' | 'bust' | 'over' | 'invalid';
+    type: 'success' | 'bust' | 'over' | 'invalid' | 'miss';
     message: string;
     value?: number;
   } | null>(null);
@@ -58,7 +60,7 @@ export const useGame = () => {
     setGameState((prev) => ({ ...prev, club }));
   }, []);
 
-  const startGame = useCallback((playerNames: string[]) => {
+  const startGame = useCallback((playerNames: string[], allowMisses = false) => {
     const players = playerNames.map((name, index) =>
       createPlayer(`player-${index}`, name, gameState.startingScore)
     );
@@ -71,6 +73,7 @@ export const useGame = () => {
       isGameOver: false,
       winner: null,
       phase: 'playing',
+      allowMisses,
     }));
     setLastThrowResult(null);
   }, [gameState.startingScore]);
@@ -89,6 +92,38 @@ export const useGame = () => {
     try {
       const footballPlayer = await searchPlayer(gameState.club.id, playerName);
       
+      const isMiss = !footballPlayer || footballPlayer.appearances === 0;
+      if (isMiss && gameState.allowMisses) {
+        const missThrow: Throw = {
+          playerId: footballPlayer?.id ?? `miss-${Date.now()}`,
+          playerName: footballPlayer?.name ?? playerName,
+          appearances: 0,
+          timestamp: Date.now(),
+          photo: footballPlayer?.photo,
+          position: footballPlayer?.position,
+          missed: true,
+          busted: true,
+        };
+        setGameState((prev) => {
+          const newPlayers = [...prev.players];
+          const ci = prev.currentPlayerIndex;
+          const newLives = Math.max(0, newPlayers[ci].lives - 1);
+          newPlayers[ci] = {
+            ...newPlayers[ci],
+            lives: newLives,
+            throws: [...newPlayers[ci].throws, missThrow],
+            isBusted: newLives <= 0,
+            isFinished: newLives <= 0,
+          };
+          const isGameOver = newPlayers.every(p => p.isBusted || p.isFinished);
+          const winner = isGameOver ? (newPlayers.find(p => !p.isBusted) ?? null) : null;
+          return { ...prev, players: newPlayers, isGameOver, winner, phase: isGameOver ? 'result' : prev.phase };
+        });
+        setLastThrowResult({ type: 'miss', message: `Miss! ${footballPlayer?.name ?? playerName} — 0 appearances` });
+        setIsLoading(false);
+        return { success: false, message: 'Miss!' };
+      }
+
       if (!footballPlayer) {
         setLastThrowResult({
           type: 'invalid',
@@ -96,6 +131,15 @@ export const useGame = () => {
         });
         setIsLoading(false);
         return { success: false, message: `Player not found: ${playerName}` };
+      }
+
+      if (footballPlayer.appearances === 0) {
+        setLastThrowResult({
+          type: 'invalid',
+          message: `${footballPlayer.name} has no appearances for this club!`,
+        });
+        setIsLoading(false);
+        return { success: false, message: `${footballPlayer.name} has 0 appearances` };
       }
 
       // In turns mode each player has their own secret pool — only block reuse within same player
@@ -267,6 +311,7 @@ export const useGame = () => {
       gameCode: null,
       sessionId: null,
       myPlayerIndex: null,
+      allowMisses: false,
     });
     setLastThrowResult(null);
     setBlitzResult(null);

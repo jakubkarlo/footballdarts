@@ -1,6 +1,6 @@
 import { Club, FootballPlayer } from '@/types/game';
 import sportsData from './sportsData.json';
-import { getTeams, getSquadByExternalTeamId, searchPlayerInTeam } from '@/lib/football/sportsDataService';
+import { getTeams, getSquadByExternalTeamId, searchPlayerInTeam, getAllPlayers } from '@/lib/football/sportsDataService';
 
 const SEASON = 2024;
 
@@ -99,6 +99,36 @@ export const searchPlayer = async (
     const n = p.name.toLowerCase();
     return n.includes(q) || q.includes(n.split(' ')[0]) || q.includes(n.split(' ').pop() ?? '');
   }) ?? null;
+};
+
+// All players across all clubs (for global suggestions)
+export const getAllPlayersLocal = (): FootballPlayer[] =>
+  sportsData.players.map(p => ({
+    id: String(p.id),
+    name: p.name,
+    appearances: 0,
+    position: p.position,
+    nationality: p.nationality,
+    photo: p.photo,
+  }));
+
+export const fetchAllPlayers = async (): Promise<FootballPlayer[]> => {
+  try {
+    const players = await getAllPlayers(SEASON);
+    if (players.length > 0) {
+      return players.map(p => ({
+        id: p.playerId,
+        name: p.name,
+        appearances: p.appearances,
+        position: p.position,
+        nationality: p.nationality,
+        photo: p.photoUrl,
+      }));
+    }
+  } catch {
+    // fall through
+  }
+  return getAllPlayersLocal();
 };
 
 export const getRandomClub = (): Club =>

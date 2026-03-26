@@ -14,7 +14,7 @@ interface GameSetupProps {
   onModeSelect?: (mode: GameMode) => void;
   onScoreSelect?: (score: StartingScore) => void;
   onClubSelect: (club: Club) => void;
-  onStart: (playerNames: string[]) => void;
+  onStart: (playerNames: string[], allowMisses?: boolean) => void;
   onBack: () => void;
   hidePlayerNames?: boolean;
 }
@@ -68,6 +68,7 @@ export const GameSetup = ({
   const [step, setStep] = useState<'config' | 'club' | 'players'>(hidePlayerNames ? 'club' : 'config');
   const [clubs, setClubs] = useState<Club[]>(mockClubs);
   const [leagueFilter, setLeagueFilter] = useState<string | null>(null);
+  const [allowMisses, setAllowMisses] = useState(false);
 
   useEffect(() => {
     fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
@@ -202,6 +203,38 @@ export const GameSetup = ({
                   </motion.button>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Allow Misses toggle */}
+          <div className="mb-6">
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Allow Misses
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {([false, true] as const).map((val) => (
+                <motion.button
+                  key={String(val)}
+                  onClick={() => setAllowMisses(val)}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: '5px',
+                    background: allowMisses === val ? '#1e3a8a' : 'white',
+                    color: allowMisses === val ? 'white' : '#1e3a8a',
+                    fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                    boxShadow: allowMisses === val ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                    border: `2px solid ${allowMisses === val ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                    cursor: 'pointer', transition: 'all 0.18s',
+                  }}
+                  whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                >
+                  {val ? 'ON — 3 lives' : 'OFF'}
+                </motion.button>
+              ))}
+            </div>
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+              {allowMisses
+                ? 'Miss = lose 1 life (3 total). Lose all → eliminated.'
+                : 'Miss = eliminated at end of turn.'}
             </div>
           </div>
 
@@ -479,7 +512,7 @@ export const GameSetup = ({
             >
               {hidePlayerNames ? (
                 <motion.button
-                  onClick={() => onStart([])}
+                  onClick={() => onStart([], allowMisses)}
                   style={{
                     background: '#1e3a8a',
                     color: 'white',
@@ -702,7 +735,7 @@ export const GameSetup = ({
             transition={{ delay: 0.16 }}
           >
             <motion.button
-              onClick={() => onStart(activePlayerNames)}
+              onClick={() => onStart(activePlayerNames, allowMisses)}
               disabled={!canProceed}
               style={{
                 display: 'flex',

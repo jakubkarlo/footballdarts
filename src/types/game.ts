@@ -33,6 +33,7 @@ export interface Throw {
   photo?: string;
   position?: string;
   busted?: boolean;
+  missed?: boolean;
 }
 
 export interface GamePlayer {
@@ -44,6 +45,7 @@ export interface GamePlayer {
   isBusted: boolean;
   isFinished: boolean;
   sessionToken?: string;
+  lives: number;
 }
 
 export interface GameState {
@@ -59,6 +61,7 @@ export interface GameState {
   gameCode: string | null;
   sessionId: string | null;
   myPlayerIndex: number | null;
+  allowMisses: boolean;
 }
 
 export interface PlayerSearchResult {

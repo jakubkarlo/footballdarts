@@ -4,7 +4,7 @@ import { GameState, FootballPlayer, Throw } from '@/types/game';
 import { PlayerInput } from './PlayerInput';
 import { PlayerSticker } from './PlayerSticker';
 import { RotateCcw, EyeOff, X } from 'lucide-react';
-import { useSquad } from '@/hooks/useSquad';
+import { useAllPlayers } from '@/hooks/useAllPlayers';
 import { searchPlayer } from '@/data/mockData';
 import { CardBack } from './BlitzGameBoard';
 
@@ -40,7 +40,12 @@ interface RoundResult {
   pIdx: number;
   apps: number;
   elim: boolean;
-  reason?: 'over180' | 'bust';
+  reason?: 'over180' | 'bust' | 'miss';
+  hasMiss?: boolean;
+}
+
+interface DraftEntry extends FootballPlayer {
+  isMiss?: boolean;
 }
 
 interface TurnsGameBoardProps {
@@ -57,9 +62,12 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   // allThrows[playerIdx][roundIdx] = throws for that player in that round
   const [allThrows, setAllThrows] = useState<Throw[][][]>(() => players.map(() => []));
 
+  const allowMisses = gameState.allowMisses;
+
   // Round state
   const [roundNum, setRoundNum] = useState(1);
-  const [draft, setDraft] = useState<FootballPlayer[][]>(() => players.map(() => []));
+  const [draft, setDraft] = useState<DraftEntry[][]>(() => players.map(() => []));
+  const [lives, setLives] = useState<number[]>(() => players.map(() => 3));
   const [draftOrder, setDraftOrder] = useState<number[]>(() => players.map((_, i) => i));
   const [draftStep, setDraftStep] = useState(0);
   const [phase, setPhase] = useState<Phase>('drafting');
@@ -72,7 +80,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const [showHistory, setShowHistory] = useState(false);
   const [historyRound, setHistoryRound] = useState(0);
 
-  const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
+  const { allPlayers, isLoading: isLoadingSquad } = useAllPlayers();
 
   const curIdx = draftOrder[draftStep] ?? 0;
   const curPlayer = players[curIdx];
@@ -91,9 +99,13 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     setIsLoading(true);
     setError(null);
     const fp = await searchPlayer(gameState.club.id, name);
-    if (!fp) { setError(`Not found: ${name}`); setIsLoading(false); return; }
-    if (usedIds.has(fp.id)) { setError(`${fp.name} already used!`); setIsLoading(false); return; }
-    setDraft(prev => { const n = prev.map(a => [...a]); n[curIdx] = [...n[curIdx], fp]; return n; });
+    const isMiss = !fp || fp.appearances === 0;
+    const entry: DraftEntry = isMiss
+      ? (fp ? { ...fp, isMiss: true } : { id: `miss-${Date.now()}`, name, appearances: 0, position: '', nationality: '', photo: '', isMiss: true })
+      : fp;
+
+    if (!isMiss && usedIds.has(fp!.id)) { setError(`${fp!.name} already used!`); setIsLoading(false); return; }
+    setDraft(prev => { const n = prev.map(a => [...a]); n[curIdx] = [...n[curIdx], entry]; return n; });
     setIsLoading(false);
   };
 
@@ -119,15 +131,24 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const resolveRound = () => {
     const newScores = [...scores];
     const newElim = [...eliminated];
+    const newLives = [...lives];
     const newThrows = allThrows.map(a => [...a]); // shallow copy of rounds array per player
     const results: RoundResult[] = [];
 
     for (const pIdx of draftOrder) {
       const d = draft[pIdx] ?? [];
-      const total = d.reduce((s, fp) => s + fp.appearances, 0);
+      const hasMiss = d.some(fp => fp.isMiss);
+      // If any miss: whole turn is a miss — other cards don't count
+      const total = hasMiss ? 0 : d.reduce((s, fp) => s + fp.appearances, 0);
       let elim = false;
       let reason: RoundResult['reason'];
-      if (total > 180) {
+
+      if (hasMiss && allowMisses) {
+        newLives[pIdx] = Math.max(0, newLives[pIdx] - 1);
+        if (newLives[pIdx] <= 0) { elim = true; reason = 'miss'; newElim[pIdx] = true; }
+      } else if (hasMiss && !allowMisses) {
+        elim = true; reason = 'miss'; newElim[pIdx] = true;
+      } else if (total > 180) {
         elim = true; reason = 'over180'; newElim[pIdx] = true;
       } else if (newScores[pIdx] - total < 0) {
         elim = true; reason = 'bust'; newElim[pIdx] = true;
@@ -142,14 +163,16 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         timestamp: Date.now(),
         photo: fp.photo,
         position: fp.position,
-        busted: elim,
+        busted: fp.isMiss,   // only the miss card gets ✕; others shown normally
+        missed: fp.isMiss,
       }));
       newThrows[pIdx] = [...newThrows[pIdx], throws]; // push whole round as its own array
-      results.push({ pIdx, apps: total, elim, reason });
+      results.push({ pIdx, apps: hasMiss ? 0 : total, elim, reason, hasMiss });
     }
 
     setScores(newScores);
     setEliminated(newElim);
+    setLives(newLives);
     setAllThrows(newThrows);
     setRoundResults(results);
 
@@ -175,6 +198,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     setDraft(players.map(() => []));
     setRoundNum(r => r + 1);
     setPhase('drafting');
+    setError(null);
   };
 
   const handleFinish = () => {
@@ -293,6 +317,11 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                                 <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} />
                               ))}
                             </div>
+                            {roundThrows.some(t => t.missed) && (
+                              <div style={{ marginTop: 6, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                {allowMisses ? '−1 life · score from the round set to 0' : 'miss · score from the round set to 0'}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -352,7 +381,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 28 }}>
-            {roundResults.map(({ pIdx, apps, elim, reason }) => (
+            {roundResults.map(({ pIdx, apps, elim, reason, hasMiss }) => (
               <motion.div
                 key={pIdx}
                 initial={{ opacity: 0, y: 10 }}
@@ -380,13 +409,22 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                   <>
                     <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', lineHeight: 1, letterSpacing: '0.08em' }}>OUT!</div>
                     <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
-                      {reason === 'over180' ? 'over 180' : 'below zero'}
+                      {reason === 'over180' ? 'over 180' : reason === 'miss' ? allowMisses ? 'no lives left' : 'miss!' : 'below zero'}
                     </div>
                   </>
                 ) : (
-                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.2rem', color: PLAYER_COLORS[pIdx], lineHeight: 1 }}>
-                    {scores[pIdx]}
-                  </div>
+                  <>
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.2rem', color: PLAYER_COLORS[pIdx], lineHeight: 1 }}>
+                      {scores[pIdx]}
+                    </div>
+                    {allowMisses && (
+                      <div style={{ fontSize: '0.72rem', marginTop: 3 }}>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <span key={i} style={{ color: i < lives[pIdx] ? '#b91c1c' : '#d4c4a0' }}>♥</span>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             ))}
@@ -470,13 +508,25 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         className="flex flex-col items-center"
       >
         {/* Player label */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: curColor, borderRadius: 4, padding: '6px 20px', marginBottom: 20 }}>
-          <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: 'white', letterSpacing: '0.06em' }}>
-            {curPlayer.name}
-          </span>
-          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            — pick your players
-          </span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: curColor, borderRadius: 4, padding: '6px 20px' }}>
+            <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: 'white', letterSpacing: '0.06em' }}>
+              {curPlayer.name}
+            </span>
+            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              — pick your players
+            </span>
+          </div>
+          {allowMisses && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'white', borderRadius: 4, padding: '4px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: '#8a7553', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Lives</span>
+              <span style={{ fontSize: '1rem', letterSpacing: '0.05em' }}>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <span key={i} style={{ color: i < lives[curIdx] ? '#b91c1c' : '#d4c4a0', transition: 'color 0.2s' }}>♥</span>
+                ))}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Previously used players */}
@@ -526,7 +576,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             isLoading={isLoading}
             disabled={false}
             placeholder={`Search player from ${gameState.club?.name ?? ''}...`}
-            suggestions={squad}
+            suggestions={allPlayers}
             isLoadingSuggestions={isLoadingSquad}
           />
         </div>
