@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GameState, Throw, FootballPlayer } from '@/types/game';
 import { PlayerInput } from './PlayerInput';
 import { RotateCcw, EyeOff, Zap } from 'lucide-react';
-import { useSquad } from '@/hooks/useSquad';
+import { useAllPlayers } from '@/hooks/useAllPlayers';
 import { searchPlayer } from '@/data/mockData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ export const BlitzGameBoard = ({
   const [error, setError] = useState<string | null>(null);
   const [showHandover, setShowHandover] = useState(false);
 
-  const { squad, isLoading: isLoadingSquad } = useSquad(gameState.club?.id || null);
+  const { allPlayers, isLoading: isLoadingSquad } = useAllPlayers();
 
   // Only block duplicates within the CURRENT player's own deck
   const usedIds = new Set((cards[currentPickerIndex] ?? []).map(c => c.footballPlayer.id));
@@ -275,8 +275,20 @@ export const BlitzGameBoard = ({
 
     const fp = await searchPlayer(gameState.club.id, playerName);
 
-    if (!fp) {
-      setError(`Not found: ${playerName}`);
+    if (!fp || fp.appearances === 0) {
+      if (gameState.allowMisses) {
+        // Add as miss card — busted immediately on reveal
+        const missPlayer = fp ?? { id: `miss-${Date.now()}`, name: playerName, appearances: 0, position: '', nationality: '', photo: '' };
+        const newCard: BlitzCard = { footballPlayer: { ...missPlayer, appearances: 0 }, gamePlayerIndex: currentPickerIndex };
+        setCards(prev => {
+          const next = prev.map(arr => [...arr]);
+          next[currentPickerIndex] = [...next[currentPickerIndex], newCard];
+          return next;
+        });
+        setIsLoading(false);
+        return;
+      }
+      setError(fp ? `${fp.name} has no appearances for this club!` : `Not found: ${playerName}`);
       setIsLoading(false);
       return;
     }
@@ -548,7 +560,7 @@ export const BlitzGameBoard = ({
               isLoading={isLoading}
               disabled={false}
               placeholder={`Search player from ${gameState.club?.name ?? ''}...`}
-              suggestions={squad}
+              suggestions={allPlayers}
               isLoadingSuggestions={isLoadingSquad}
             />
           </div>

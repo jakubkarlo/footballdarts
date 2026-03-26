@@ -1,19 +1,28 @@
 /**
  * sync-sports-data — Supabase Edge Function
  *
- * Syncs teams, players, and appearances into the database.
- * Uses a pluggable provider — swap MockProvider for ApiFootballProvider
- * once a real API key is available.
+ * Syncs teams, players, and appearances into the database
+ * using the football-data.org API (v4).
+ *
+ * Required secret: FDO_API_KEY  (set via `supabase secrets set FDO_API_KEY=xxx`)
  *
  * Trigger: POST /functions/v1/sync-sports-data
- * Body (optional): { leagueId?: number, season?: number }
+ * Body (optional): { leagueIds?: number[], season?: number, clearFirst?: boolean }
  *
- * For daily automation: call this from pg_cron or a GitHub Actions schedule.
+ * football-data.org league IDs:
+ *   2021 – Premier League
+ *   2014 – La Liga (Spain)
+ *   2002 – Bundesliga (Germany)
+ *   2019 – Serie A (Italy)
+ *   2015 – Ligue 1 (France)
+ *   2001 – Champions League
+ *
+ * Rate limit: 10 req/min on free tier → we sleep 6 s between appearance calls.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// ─── Types (inline — Edge Functions can't import from src/) ──────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TeamData {
   externalId: number;
@@ -40,103 +49,85 @@ interface AppearancesData {
   appearances: number;
 }
 
-interface IFootballDataProvider {
-  getTeams(leagueId: number, season: number): Promise<TeamData[]>;
-  getSquad(teamExternalId: number): Promise<PlayerData[]>;
-  getPlayerAppearances(playerExternalId: number, teamExternalId: number, season: number): Promise<AppearancesData>;
-}
+// ─── football-data.org provider ───────────────────────────────────────────────
 
-// ─── Mock provider (embedded for Edge Function) ──────────────────────────────
+class FootballDataOrgProvider {
+  private readonly baseUrl = 'https://api.football-data.org/v4';
+  constructor(private readonly apiKey: string) {}
 
-const MOCK_TEAMS: TeamData[] = [
-  { externalId: 33,  name: 'Manchester United', shortName: 'Man Utd',  logoUrl: 'https://media.api-sports.io/football/teams/33.png',  country: 'England', leagueId: 39,  season: 2024 },
-  { externalId: 40,  name: 'Liverpool',          shortName: 'Liverpool',logoUrl: 'https://media.api-sports.io/football/teams/40.png',  country: 'England', leagueId: 39,  season: 2024 },
-  { externalId: 42,  name: 'Arsenal',            shortName: 'Arsenal',  logoUrl: 'https://media.api-sports.io/football/teams/42.png',  country: 'England', leagueId: 39,  season: 2024 },
-  { externalId: 50,  name: 'Manchester City',    shortName: 'Man City', logoUrl: 'https://media.api-sports.io/football/teams/50.png',  country: 'England', leagueId: 39,  season: 2024 },
-  { externalId: 541, name: 'Real Madrid',        shortName: 'Real',     logoUrl: 'https://media.api-sports.io/football/teams/541.png', country: 'Spain',   leagueId: 140, season: 2024 },
-  { externalId: 529, name: 'Barcelona',          shortName: 'Barca',    logoUrl: 'https://media.api-sports.io/football/teams/529.png', country: 'Spain',   leagueId: 140, season: 2024 },
-  { externalId: 157, name: 'Bayern Munich',      shortName: 'Bayern',   logoUrl: 'https://media.api-sports.io/football/teams/157.png', country: 'Germany', leagueId: 78,  season: 2024 },
-  { externalId: 85,  name: 'Paris Saint-Germain',shortName: 'PSG',      logoUrl: 'https://media.api-sports.io/football/teams/85.png',  country: 'France',  leagueId: 61,  season: 2024 },
-];
+  private async fetch<T>(path: string): Promise<T> {
+    const res = await globalThis.fetch(`${this.baseUrl}${path}`, {
+      headers: { 'X-Auth-Token': this.apiKey },
+    });
+    if (!res.ok) throw new Error(`FDO ${res.status}: ${path}`);
+    return res.json() as Promise<T>;
+  }
 
-const MOCK_PLAYERS: PlayerData[] = [
-  { externalId: 1001, name: 'Ryan Giggs',           position: 'Midfielder', nationality: 'Wales' },
-  { externalId: 1002, name: 'Wayne Rooney',          position: 'Forward',   nationality: 'England' },
-  { externalId: 1003, name: 'Paul Scholes',          position: 'Midfielder', nationality: 'England' },
-  { externalId: 1004, name: 'Cristiano Ronaldo',     position: 'Forward',   nationality: 'Portugal' },
-  { externalId: 1005, name: 'Marcus Rashford',       position: 'Forward',   nationality: 'England' },
-  { externalId: 1006, name: 'Bruno Fernandes',       position: 'Midfielder', nationality: 'Portugal' },
-  { externalId: 2001, name: 'Steven Gerrard',        position: 'Midfielder', nationality: 'England' },
-  { externalId: 2002, name: 'Mohamed Salah',         position: 'Forward',   nationality: 'Egypt' },
-  { externalId: 2003, name: 'Virgil van Dijk',       position: 'Defender',  nationality: 'Netherlands' },
-  { externalId: 2004, name: 'Sadio Mane',            position: 'Forward',   nationality: 'Senegal' },
-  { externalId: 3001, name: 'Thierry Henry',         position: 'Forward',   nationality: 'France' },
-  { externalId: 3002, name: 'Bukayo Saka',           position: 'Forward',   nationality: 'England' },
-  { externalId: 3003, name: 'Martin Odegaard',       position: 'Midfielder', nationality: 'Norway' },
-  { externalId: 3004, name: 'Declan Rice',           position: 'Midfielder', nationality: 'England' },
-  { externalId: 4001, name: 'Erling Haaland',        position: 'Forward',   nationality: 'Norway' },
-  { externalId: 4002, name: 'Kevin De Bruyne',       position: 'Midfielder', nationality: 'Belgium' },
-  { externalId: 5001, name: 'Karim Benzema',         position: 'Forward',   nationality: 'France' },
-  { externalId: 5002, name: 'Luka Modric',           position: 'Midfielder', nationality: 'Croatia' },
-  { externalId: 5003, name: 'Vinicius Jr',           position: 'Forward',   nationality: 'Brazil' },
-  { externalId: 5004, name: 'Jude Bellingham',       position: 'Midfielder', nationality: 'England' },
-  { externalId: 6001, name: 'Lionel Messi',          position: 'Forward',   nationality: 'Argentina' },
-  { externalId: 6002, name: 'Pedri',                 position: 'Midfielder', nationality: 'Spain' },
-  { externalId: 6003, name: 'Gavi',                  position: 'Midfielder', nationality: 'Spain' },
-  { externalId: 7001, name: 'Thomas Muller',         position: 'Forward',   nationality: 'Germany' },
-  { externalId: 7002, name: 'Jamal Musiala',         position: 'Midfielder', nationality: 'Germany' },
-  { externalId: 7003, name: 'Harry Kane',            position: 'Forward',   nationality: 'England' },
-  { externalId: 8001, name: 'Kylian Mbappe',         position: 'Forward',   nationality: 'France' },
-  { externalId: 8002, name: 'Ousmane Dembele',       position: 'Forward',   nationality: 'France' },
-];
-
-const SQUAD_MAP: Record<number, number[]> = {
-  33:  [1001, 1002, 1003, 1004, 1005, 1006],
-  40:  [2001, 2002, 2003, 2004],
-  42:  [3001, 3002, 3003, 3004],
-  50:  [4001, 4002],
-  541: [5001, 5002, 5003, 5004],
-  529: [6001, 6002, 6003],
-  157: [7001, 7002, 7003],
-  85:  [8001, 8002],
-};
-
-const APPEARANCES_MAP: Record<string, number> = {
-  '1001_33': 168, '1002_33': 156, '1003_33': 155, '1004_33': 145,
-  '1005_33': 95,  '1006_33': 88,
-  '2001_40': 165, '2002_40': 142, '2003_40': 110, '2004_40': 95,
-  '3001_42': 174, '3002_42': 72,  '3003_42': 60,  '3004_42': 40,
-  '4001_50': 80,  '4002_50': 165,
-  '5001_541': 165, '5002_541': 148, '5003_541': 78, '5004_541': 45,
-  '6001_529': 180, '6002_529': 62,  '6003_529': 55,
-  '7001_157': 163, '7002_157': 48,  '7003_157': 35,
-  '8001_85': 118,  '8002_85': 72,
-};
-
-class MockFootballDataProvider implements IFootballDataProvider {
   async getTeams(leagueId: number, season: number): Promise<TeamData[]> {
-    return MOCK_TEAMS.filter(t =>
-      (!leagueId || t.leagueId === leagueId) && t.season === season
+    const data = await this.fetch<{ teams: FdTeam[] }>(
+      `/competitions/${leagueId}/teams?season=${season}`
     );
+    return data.teams.map((t) => ({
+      externalId: t.id,
+      name: t.name,
+      shortName: t.shortName ?? t.tla,
+      logoUrl: t.crest,
+      country: t.area?.name,
+      leagueId,
+      season,
+    }));
   }
 
   async getSquad(teamExternalId: number): Promise<PlayerData[]> {
-    const ids = SQUAD_MAP[teamExternalId] ?? [];
-    return MOCK_PLAYERS.filter(p => ids.includes(p.externalId));
+    const data = await this.fetch<{ squad: FdSquadPlayer[] }>(
+      `/teams/${teamExternalId}`
+    );
+    return (data.squad ?? []).map((p) => ({
+      externalId: p.id,
+      name: p.name,
+      position: normalisePosition(p.position),
+      nationality: p.nationality,
+      photoUrl: undefined, // not available on free tier
+    }));
   }
 
-  async getPlayerAppearances(playerExternalId: number, teamExternalId: number, season: number): Promise<AppearancesData> {
-    const key = `${playerExternalId}_${teamExternalId}`;
-    const appearances = APPEARANCES_MAP[key] ?? Math.floor(Math.random() * 60) + 10;
+  async getPlayerAppearances(
+    playerExternalId: number,
+    teamExternalId: number,
+    season: number
+  ): Promise<AppearancesData> {
+    const data = await this.fetch<FdPersonMatches>(
+      `/persons/${playerExternalId}/matches?season=${season}&status=FINISHED&limit=100`
+    );
+    const appearances = data.resultSet?.total ?? data.matches?.length ?? 0;
     return { playerExternalId, teamExternalId, season, appearances };
   }
 }
 
-// ─── Sync logic ──────────────────────────────────────────────────────────────
+interface FdTeam { id: number; name: string; shortName?: string; tla?: string; crest?: string; area?: { name: string }; }
+interface FdSquadPlayer { id: number; name: string; position?: string; nationality?: string; }
+interface FdPersonMatches { matches?: unknown[]; resultSet?: { count: number; total: number }; }
+
+function normalisePosition(pos?: string): string | undefined {
+  if (!pos) return undefined;
+  const l = pos.toLowerCase();
+  if (l.includes('goal'))  return 'Goalkeeper';
+  if (l.includes('def') || l === 'defence') return 'Defender';
+  if (l.includes('mid'))   return 'Midfielder';
+  if (l.includes('off') || l.includes('attack') || l.includes('forward')) return 'Forward';
+  return pos;
+}
+
+// ─── Sync logic ───────────────────────────────────────────────────────────────
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// football-data.org free tier: 10 req/min → wait 6 s between calls
+const RATE_LIMIT_DELAY_MS = 6_000;
 
 async function syncAll(
   supabase: ReturnType<typeof createClient>,
-  provider: IFootballDataProvider,
+  provider: FootballDataOrgProvider,
   leagueIds: number[],
   season: number
 ) {
@@ -146,9 +137,11 @@ async function syncAll(
   const errors: string[] = [];
 
   for (const leagueId of leagueIds) {
+    // 1. Fetch teams
     let teams: TeamData[];
     try {
       teams = await provider.getTeams(leagueId, season);
+      await sleep(RATE_LIMIT_DELAY_MS);
     } catch (e) {
       errors.push(`getTeams(${leagueId}): ${e}`);
       continue;
@@ -156,7 +149,7 @@ async function syncAll(
 
     // Upsert teams
     const { error: teamErr } = await supabase.from('teams').upsert(
-      teams.map(t => ({
+      teams.map((t) => ({
         external_id: t.externalId,
         name: t.name,
         short_name: t.shortName,
@@ -168,33 +161,32 @@ async function syncAll(
       })),
       { onConflict: 'external_id' }
     );
-    if (teamErr) { errors.push(`upsert teams: ${teamErr.message}`); continue; }
+    if (teamErr) { errors.push(`upsert teams(${leagueId}): ${teamErr.message}`); continue; }
     teamsUpserted += teams.length;
 
-    // Fetch team rows to get UUIDs
+    // Fetch back UUIDs
     const { data: teamRows } = await supabase
       .from('teams')
       .select('id, external_id')
-      .in('external_id', teams.map(t => t.externalId));
+      .in('external_id', teams.map((t) => t.externalId));
 
-    const teamUuidByExternalId = Object.fromEntries(
-      (teamRows ?? []).map(r => [r.external_id, r.id])
-    );
+    const teamUuidMap = Object.fromEntries((teamRows ?? []).map((r) => [r.external_id, r.id]));
 
+    // 2. For each team — fetch squad
     for (const team of teams) {
       let squad: PlayerData[];
       try {
         squad = await provider.getSquad(team.externalId);
+        await sleep(RATE_LIMIT_DELAY_MS);
       } catch (e) {
         errors.push(`getSquad(${team.externalId}): ${e}`);
         continue;
       }
-
       if (!squad.length) continue;
 
       // Upsert players
       const { error: playerErr } = await supabase.from('players').upsert(
-        squad.map(p => ({
+        squad.map((p) => ({
           external_id: p.externalId,
           name: p.name,
           position: p.position,
@@ -204,34 +196,32 @@ async function syncAll(
         })),
         { onConflict: 'external_id' }
       );
-      if (playerErr) { errors.push(`upsert players: ${playerErr.message}`); continue; }
+      if (playerErr) { errors.push(`upsert players(${team.externalId}): ${playerErr.message}`); continue; }
       playersUpserted += squad.length;
 
-      // Fetch player rows to get UUIDs
+      // Fetch back player UUIDs
       const { data: playerRows } = await supabase
         .from('players')
         .select('id, external_id')
-        .in('external_id', squad.map(p => p.externalId));
+        .in('external_id', squad.map((p) => p.externalId));
 
-      const playerUuidByExternalId = Object.fromEntries(
-        (playerRows ?? []).map(r => [r.external_id, r.id])
-      );
-
-      const teamUuid = teamUuidByExternalId[team.externalId];
+      const playerUuidMap = Object.fromEntries((playerRows ?? []).map((r) => [r.external_id, r.id]));
+      const teamUuid = teamUuidMap[team.externalId];
       if (!teamUuid) continue;
 
-      // Upsert appearances for each player
+      // 3. Appearances per player
       const appearanceRows = [];
       for (const player of squad) {
         let apData: AppearancesData;
         try {
           apData = await provider.getPlayerAppearances(player.externalId, team.externalId, season);
+          await sleep(RATE_LIMIT_DELAY_MS);
         } catch (e) {
-          errors.push(`getPlayerAppearances(${player.externalId}, ${team.externalId}): ${e}`);
+          errors.push(`getPlayerAppearances(${player.externalId}): ${e}`);
           continue;
         }
 
-        const playerUuid = playerUuidByExternalId[player.externalId];
+        const playerUuid = playerUuidMap[player.externalId];
         if (!playerUuid) continue;
 
         appearanceRows.push({
@@ -247,7 +237,7 @@ async function syncAll(
         const { error: apErr } = await supabase
           .from('player_appearances')
           .upsert(appearanceRows, { onConflict: 'player_id,team_id,season' });
-        if (apErr) errors.push(`upsert appearances: ${apErr.message}`);
+        if (apErr) errors.push(`upsert appearances(${team.externalId}): ${apErr.message}`);
         else appearancesUpserted += appearanceRows.length;
       }
     }
@@ -256,21 +246,21 @@ async function syncAll(
   return { teamsUpserted, playersUpserted, appearancesUpserted, errors };
 }
 
-// ─── Handler ─────────────────────────────────────────────────────────────────
+// ─── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-  // Allow cron calls without a body
-  let leagueIds = [39, 140, 78, 135, 61]; // PL, La Liga, Bundesliga, Serie A, Ligue 1
+  // Default: Premier League + La Liga + Bundesliga
+  let leagueIds = [2021, 2014, 2002];
   let season = 2024;
+  let clearFirst = false;
 
   if (req.method === 'POST') {
     try {
       const body = await req.json();
       if (body.leagueIds) leagueIds = body.leagueIds;
-      if (body.season) season = body.season;
-    } catch {
-      // empty body is fine
-    }
+      if (body.season)    season    = body.season;
+      if (body.clearFirst) clearFirst = body.clearFirst;
+    } catch { /* empty body */ }
   }
 
   const supabase = createClient(
@@ -278,9 +268,22 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  // TODO: swap MockFootballDataProvider for ApiFootballProvider once API key is set
-  const provider: IFootballDataProvider = new MockFootballDataProvider();
+  const apiKey = Deno.env.get('FDO_API_KEY');
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: 'FDO_API_KEY secret not set' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
+  // Optionally wipe existing data (needed when switching from mock IDs to FDO IDs)
+  if (clearFirst) {
+    await supabase.from('player_appearances').delete().neq('season', -1);
+    await supabase.from('players').delete().neq('external_id', -1);
+    await supabase.from('teams').delete().neq('external_id', -1);
+  }
+
+  const provider = new FootballDataOrgProvider(apiKey);
   const result = await syncAll(supabase, provider, leagueIds, season);
 
   return new Response(JSON.stringify(result), {

@@ -18,6 +18,8 @@ create table if not exists public.players (
   id              uuid primary key default gen_random_uuid(),
   external_id     integer not null unique,   -- ID from the data provider
   name            text    not null,
+  firstname       text,
+  lastname        text,
   position        text,
   nationality     text,
   photo_url       text,
@@ -40,12 +42,15 @@ create index if not exists idx_players_external_id   on public.players(external_
 create index if not exists idx_pa_team_season        on public.player_appearances(team_id, season);
 create index if not exists idx_pa_player             on public.player_appearances(player_id);
 
--- Convenience view: players with their team appearances (what the game actually queries)
+-- Convenience view: players with their team appearances summed across ALL seasons
+-- (no season column — the game shows career totals per club)
 create or replace view public.squad_appearances as
   select
     p.id              as player_id,
     p.external_id     as player_external_id,
     p.name            as player_name,
+    p.firstname       as player_firstname,
+    p.lastname        as player_lastname,
     p.position,
     p.nationality,
     p.photo_url,
@@ -54,11 +59,13 @@ create or replace view public.squad_appearances as
     t.name            as team_name,
     t.logo_url        as team_logo,
     t.country         as team_country,
-    pa.season,
-    pa.appearances
+    sum(pa.appearances) as appearances
   from public.player_appearances pa
   join public.players p on p.id = pa.player_id
-  join public.teams   t on t.id = pa.team_id;
+  join public.teams   t on t.id = pa.team_id
+  group by
+    p.id, p.external_id, p.name, p.firstname, p.lastname, p.position, p.nationality, p.photo_url,
+    t.id, t.external_id, t.name, t.logo_url, t.country;
 
 -- RLS: read-only for anonymous (the game only reads this data)
 alter table public.teams               enable row level security;

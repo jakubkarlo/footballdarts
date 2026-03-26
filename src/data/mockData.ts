@@ -1,7 +1,10 @@
 import { Club, FootballPlayer } from '@/types/game';
 import sportsData from './sportsData.json';
+import { getTeams, getSquadByExternalTeamId, searchPlayerInTeam, getAllPlayers } from '@/lib/football/sportsDataService';
 
-// Clubs straight from JSON
+const SEASON = 2024;
+
+// Clubs straight from JSON (fallback)
 export const mockClubs: Club[] = sportsData.teams.map(t => ({
   id: String(t.id),
   name: t.name,
@@ -9,8 +12,24 @@ export const mockClubs: Club[] = sportsData.teams.map(t => ({
   country: t.country,
 }));
 
-export const fetchClubs = async (): Promise<Club[]> => mockClubs;
+export const fetchClubs = async (): Promise<Club[]> => {
+  try {
+    const teams = await getTeams(SEASON);
+    if (teams.length > 0) {
+      return teams.map(t => ({
+        id: String(t.externalId),
+        name: t.name,
+        logo: t.logoUrl,
+        country: t.country,
+      }));
+    }
+  } catch {
+    // fall through to local data
+  }
+  return mockClubs;
+};
 
+// Sync fallback — used only when Supabase hasn't loaded yet
 export const getPlayersForClub = (clubId: string): FootballPlayer[] => {
   const teamId = Number(clubId);
   const playerIds = new Set(
@@ -35,20 +54,87 @@ export const getPlayersForClub = (clubId: string): FootballPlayer[] => {
     });
 };
 
+// Async version — tries Supabase first, falls back to JSON
+export const fetchPlayersForClub = async (clubId: string): Promise<FootballPlayer[]> => {
+  try {
+    const squad = await getSquadByExternalTeamId(Number(clubId), SEASON);
+    if (squad.length > 0) {
+      return squad.map(p => ({
+        id: p.playerId,
+        name: p.name,
+        appearances: p.appearances,
+        position: p.position,
+        nationality: p.nationality,
+        photo: p.photoUrl,
+      }));
+    }
+  } catch {
+    // fall through to local data
+  }
+  return getPlayersForClub(clubId);
+};
+
 export const searchPlayer = async (
   clubId: string,
   playerName: string
 ): Promise<FootballPlayer | null> => {
+  try {
+    const p = await searchPlayerInTeam(Number(clubId), playerName, SEASON);
+    if (p) {
+      return {
+        id: p.playerId,
+        name: p.name,
+        appearances: p.appearances,
+        position: p.position,
+        nationality: p.nationality,
+        photo: p.photoUrl,
+      };
+    }
+  } catch {
+    // fall through to local search
+  }
   const players = getPlayersForClub(clubId);
   const q = playerName.toLowerCase().trim();
-  const found = players.find(p => {
+  return players.find(p => {
     const n = p.name.toLowerCase();
     return n.includes(q) || q.includes(n.split(' ')[0]) || q.includes(n.split(' ').pop() ?? '');
-  });
-  return found ?? null;
+  }) ?? null;
+};
+
+// All players across all clubs (for global suggestions)
+export const getAllPlayersLocal = (): FootballPlayer[] =>
+  sportsData.players.map(p => ({
+    id: String(p.id),
+    name: p.name,
+    appearances: 0,
+    position: p.position,
+    nationality: p.nationality,
+    photo: p.photo,
+  }));
+
+export const fetchAllPlayers = async (): Promise<FootballPlayer[]> => {
+  try {
+    const players = await getAllPlayers(SEASON);
+    if (players.length > 0) {
+      return players.map(p => ({
+        id: p.playerId,
+        name: p.name,
+        appearances: p.appearances,
+        position: p.position,
+        nationality: p.nationality,
+        photo: p.photoUrl,
+      }));
+    }
+  } catch {
+    // fall through
+  }
+  return getAllPlayersLocal();
 };
 
 export const getRandomClub = (): Club =>
   mockClubs[Math.floor(Math.random() * mockClubs.length)];
 
-export const getRandomClubAsync = async (): Promise<Club> => getRandomClub();
+export const getRandomClubAsync = async (): Promise<Club> => {
+  const clubs = await fetchClubs();
+  return clubs[Math.floor(Math.random() * clubs.length)];
+};

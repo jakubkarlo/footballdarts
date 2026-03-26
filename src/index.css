@@ -117,22 +117,22 @@
     background: linear-gradient(
       105deg,
       transparent 0%,
-      transparent 30%,
-      rgba(255, 255, 255, 0.55) 45%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0.55) 55%,
-      transparent 70%,
+      transparent 35%,
+      rgba(255, 255, 255, 0.12) 47%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0.12) 53%,
+      transparent 65%,
       transparent 100%
     );
     background-size: 300% 100%;
-    animation: foilSweep 2.5s ease-in-out infinite;
+    animation: foilSweep 9s ease-in-out infinite;
     pointer-events: none;
     z-index: 10;
   }
 
   @keyframes foilSweep {
     0% { background-position: -150% 0; }
-    60%, 100% { background-position: 200% 0; }
+    70%, 100% { background-position: 200% 0; }
   }
 
   /* Score animations */

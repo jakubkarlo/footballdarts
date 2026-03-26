@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface ThrowResultProps {
   result: {
-    type: 'success' | 'bust' | 'over' | 'invalid';
+    type: 'success' | 'bust' | 'over' | 'invalid' | 'miss';
     message: string;
     value?: number;
   } | null;
@@ -14,6 +14,7 @@ const CONFIG = {
   bust:    { border: '#dc2626', color: '#dc2626', label: 'BUST', bg: '#fef2f2' },
   over:    { border: '#b45309', color: '#b45309', label: 'OVER', bg: '#fffbeb' },
   invalid: { border: '#8a7553', color: '#8a7553', label: 'N/A',  bg: '#faf5eb' },
+  miss:    { border: '#b91c1c', color: '#b91c1c', label: 'MISS', bg: '#fef2f2' },
 };
 
 export const ThrowResult = ({ result }: ThrowResultProps) => {

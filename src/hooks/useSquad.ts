@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPlayersForClub } from '@/data/mockData';
+import { fetchPlayersForClub } from '@/data/mockData';
 
 export interface SquadPlayer {
   id: number;
@@ -113,13 +113,19 @@ export const useSquad = (teamId: string | null) => {
 
   const fetchSquad = useCallback(() => {
     if (!teamId) { setSquad([]); return; }
-    const players = getPlayersForClub(teamId).map(p => ({
-      id: p.id ? Number(p.id) : 0,
-      name: p.name,
-      photo: p.photo ?? '',
-      position: p.position ?? '',
-    }));
-    setSquad(players.length > 0 ? players : (fallbackSquads[teamId] ?? []));
+    setIsLoading(true);
+    fetchPlayersForClub(teamId)
+      .then(players => {
+        const mapped = players.map(p => ({
+          id: p.id ? Number(p.id) : 0,
+          name: p.name,
+          photo: p.photo ?? '',
+          position: p.position ?? '',
+        }));
+        setSquad(mapped.length > 0 ? mapped : (fallbackSquads[teamId] ?? []));
+      })
+      .catch(() => setSquad(fallbackSquads[teamId] ?? []))
+      .finally(() => setIsLoading(false));
   }, [teamId]);
 
   useEffect(() => {
