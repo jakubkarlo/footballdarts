@@ -94,11 +94,11 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleAdd = async (name: string) => {
+  const handleAdd = async (name: string, playerId?: string) => {
     if (!gameState.club) return;
     setIsLoading(true);
     setError(null);
-    const fp = await searchPlayer(gameState.club.id, name);
+    const fp = await searchPlayer(gameState.club.id, name, playerId);
     const isMiss = !fp || fp.appearances === 0;
     const entry: DraftEntry = isMiss
       ? (fp ? { ...fp, isMiss: true } : { id: `miss-${Date.now()}`, name, appearances: 0, position: '', nationality: '', photo: '', isMiss: true })

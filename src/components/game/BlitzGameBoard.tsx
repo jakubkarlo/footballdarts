@@ -268,12 +268,12 @@ export const BlitzGameBoard = ({
   const allPicked = currentPickerIndex >= playerCount;
 
   // ── Pick a card ────────────────────────────────────────────────────────────
-  const handlePick = async (playerName: string) => {
+  const handlePick = async (playerName: string, playerId?: string) => {
     if (!gameState.club || allPicked) return;
     setIsLoading(true);
     setError(null);
 
-    const fp = await searchPlayer(gameState.club.id, playerName);
+    const fp = await searchPlayer(gameState.club.id, playerName, playerId);
 
     if (!fp || fp.appearances === 0) {
       if (gameState.allowMisses) {

@@ -19,6 +19,8 @@ export interface Club {
 export interface FootballPlayer {
   id: string;
   name: string;
+  firstname?: string;
+  lastname?: string;
   appearances: number;
   position: string;
   nationality: string;

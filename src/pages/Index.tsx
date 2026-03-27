@@ -53,8 +53,8 @@ const Index = () => {
   const [showCreateOnline, setShowCreateOnline] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
 
-  const handleThrow = async (playerName: string) => {
-    await makeThrow(playerName);
+  const handleThrow = async (playerName: string, playerId?: string) => {
+    await makeThrow(playerName, playerId);
   };
 
   const handleFinish = () => {

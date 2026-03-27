@@ -78,7 +78,7 @@ export const useGame = () => {
     setLastThrowResult(null);
   }, [gameState.startingScore]);
 
-  const makeThrow = useCallback(async (playerName: string): Promise<{
+  const makeThrow = useCallback(async (playerName: string, playerId?: string): Promise<{
     success: boolean;
     appearances?: number;
     message: string;
@@ -90,7 +90,7 @@ export const useGame = () => {
     setIsLoading(true);
     
     try {
-      const footballPlayer = await searchPlayer(gameState.club.id, playerName);
+      const footballPlayer = await searchPlayer(gameState.club.id, playerName, playerId);
       
       const isMiss = !footballPlayer || footballPlayer.appearances === 0;
       if (isMiss && gameState.allowMisses) {

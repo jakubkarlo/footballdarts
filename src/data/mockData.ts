@@ -1,6 +1,6 @@
 import { Club, FootballPlayer } from '@/types/game';
 import sportsData from './sportsData.json';
-import { getTeams, getSquadByExternalTeamId, searchPlayerInTeam, getAllPlayers } from '@/lib/football/sportsDataService';
+import { getTeams, getSquadByExternalTeamId, searchPlayerInTeam, getAllPlayers, getPlayerByIdInTeam } from '@/lib/football/sportsDataService';
 
 const SEASON = 2024;
 
@@ -62,6 +62,8 @@ export const fetchPlayersForClub = async (clubId: string): Promise<FootballPlaye
       return squad.map(p => ({
         id: p.playerId,
         name: p.name,
+        firstname: p.firstname,
+        lastname: p.lastname,
         appearances: p.appearances,
         position: p.position,
         nationality: p.nationality,
@@ -76,10 +78,13 @@ export const fetchPlayersForClub = async (clubId: string): Promise<FootballPlaye
 
 export const searchPlayer = async (
   clubId: string,
-  playerName: string
+  playerName: string,
+  playerId?: string,
 ): Promise<FootballPlayer | null> => {
   try {
-    const p = await searchPlayerInTeam(Number(clubId), playerName, SEASON);
+    const p = playerId
+      ? await getPlayerByIdInTeam(Number(clubId), playerId)
+      : await searchPlayerInTeam(Number(clubId), playerName);
     if (p) {
       return {
         id: p.playerId,
@@ -95,10 +100,18 @@ export const searchPlayer = async (
   }
   const players = getPlayersForClub(clubId);
   const q = playerName.toLowerCase().trim();
-  return players.find(p => {
-    const n = p.name.toLowerCase();
-    return n.includes(q) || q.includes(n.split(' ')[0]) || q.includes(n.split(' ').pop() ?? '');
-  }) ?? null;
+  const qParts = q.split(/\s+/);
+  const qLast = qParts[qParts.length - 1];
+  // Prefer exact lastname match to avoid wrong-Gabriel situations
+  return (
+    players.find(p => {
+      const nParts = p.name.toLowerCase().split(/\s+/);
+      const nLast = nParts[nParts.length - 1];
+      return nLast === qLast && nParts[0].startsWith(qParts[0]);
+    }) ??
+    players.find(p => p.name.toLowerCase().includes(q)) ??
+    null
+  );
 };
 
 // All players across all clubs (for global suggestions)
@@ -119,6 +132,8 @@ export const fetchAllPlayers = async (): Promise<FootballPlayer[]> => {
       return players.map(p => ({
         id: p.playerId,
         name: p.name,
+        firstname: p.firstname,
+        lastname: p.lastname,
         appearances: p.appearances,
         position: p.position,
         nationality: p.nationality,

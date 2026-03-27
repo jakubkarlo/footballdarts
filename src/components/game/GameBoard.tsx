@@ -18,7 +18,7 @@ interface GameBoardProps {
     message: string;
     value?: number;
   } | null;
-  onThrow: (playerName: string) => Promise<void>;
+  onThrow: (playerName: string, playerId?: string) => Promise<void>;
   onEndTurn: () => void;
   onFinish: () => void;
   onReset: () => void;

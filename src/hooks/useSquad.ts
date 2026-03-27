@@ -3,7 +3,9 @@ import { fetchPlayersForClub } from '@/data/mockData';
 
 export interface SquadPlayer {
   id: number;
+  playerId?: string;
   name: string;
+  fullName?: string;
   photo: string;
   position: string;
 }

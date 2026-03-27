@@ -5,15 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Search, Loader2, X, Target, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', usage: 'search' });
+
+const diacriticIncludes = (haystack: string, needle: string): boolean => {
+  if (!needle) return true;
+  for (let i = 0; i <= haystack.length - needle.length; i++) {
+    if (collator.compare(haystack.slice(i, i + needle.length), needle) === 0) return true;
+  }
+  return false;
+};
+
 interface SquadPlayer {
   id: number;
+  playerId?: string;
   name: string;
+  fullName?: string;
   photo: string;
   position: string;
 }
 
 interface PlayerInputProps {
-  onSubmit: (playerName: string) => Promise<void>;
+  onSubmit: (playerName: string, playerId?: string) => Promise<void>;
   isLoading: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -35,14 +47,9 @@ export const PlayerInput = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // Filter suggestions based on input
+  // Filter suggestions — searches by display name, diacritic-insensitive
   const filteredSuggestions = value.trim().length >= 2
-    ? suggestions.filter(player => {
-        const query = value.toLowerCase().trim();
-        const nameParts = player.name.toLowerCase().split(' ');
-        return player.name.toLowerCase().includes(query) ||
-               nameParts.some(part => part.startsWith(query));
-      }).slice(0, 5)
+    ? suggestions.filter(player => diacriticIncludes(player.name, value.trim())).slice(0, 5)
     : [];
 
   useEffect(() => {
@@ -80,7 +87,7 @@ export const PlayerInput = ({
   const handleSelectSuggestion = async (player: SquadPlayer) => {
     setValue(player.name);
     setShowSuggestions(false);
-    await onSubmit(player.name);
+    await onSubmit(player.name, player.playerId);
     setValue('');
   };
 
@@ -184,6 +191,9 @@ export const PlayerInput = ({
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-foreground truncate">{player.name}</p>
+                            {player.fullName && player.fullName !== player.name && (
+                              <p className="text-xs text-muted-foreground/70 truncate">{player.fullName}</p>
+                            )}
                             <p className="text-sm text-muted-foreground">{player.position}</p>
                           </div>
                         </button>
