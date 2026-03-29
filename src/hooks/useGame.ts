@@ -37,6 +37,7 @@ export const useGame = () => {
     sessionId: null,
     myPlayerIndex: null,
     allowMisses: false,
+    timer: null,
   });
 
   const [blitzResult, setBlitzResult] = useState<BlitzResult | null>(null);
@@ -60,7 +61,7 @@ export const useGame = () => {
     setGameState((prev) => ({ ...prev, club }));
   }, []);
 
-  const startGame = useCallback((playerNames: string[], allowMisses = false) => {
+  const startGame = useCallback((playerNames: string[], allowMisses = false, timer: 30 | 60 | 90 | null = null) => {
     const players = playerNames.map((name, index) =>
       createPlayer(`player-${index}`, name, gameState.startingScore)
     );
@@ -74,6 +75,7 @@ export const useGame = () => {
       winner: null,
       phase: 'playing',
       allowMisses,
+      timer,
     }));
     setLastThrowResult(null);
   }, [gameState.startingScore]);
@@ -312,6 +314,7 @@ export const useGame = () => {
       sessionId: null,
       myPlayerIndex: null,
       allowMisses: false,
+      timer: null,
     });
     setLastThrowResult(null);
     setBlitzResult(null);

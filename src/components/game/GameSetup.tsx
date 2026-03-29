@@ -14,7 +14,7 @@ interface GameSetupProps {
   onModeSelect?: (mode: GameMode) => void;
   onScoreSelect?: (score: StartingScore) => void;
   onClubSelect: (club: Club) => void;
-  onStart: (playerNames: string[], allowMisses?: boolean) => void;
+  onStart: (playerNames: string[], allowMisses?: boolean, timer?: 30 | 60 | 90 | null) => void;
   onBack: () => void;
   hidePlayerNames?: boolean;
 }
@@ -71,6 +71,7 @@ export const GameSetup = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [allowMisses, setAllowMisses] = useState(false);
+  const [timer, setTimer] = useState<30 | 60 | 90 | null>(null);
 
   useEffect(() => {
     fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
@@ -208,6 +209,40 @@ export const GameSetup = ({
               })}
             </div>
           </div>
+
+          {/* Turn Timer — for multiplayer modes */}
+          {mode !== 'solo' && (
+            <div className="mb-6">
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                Turn Timer
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([null, 30, 60, 90] as const).map((val) => (
+                  <motion.button
+                    key={String(val)}
+                    onClick={() => setTimer(val)}
+                    style={{
+                      flex: 1, padding: '9px 0', borderRadius: '5px',
+                      background: timer === val ? '#1e3a8a' : 'white',
+                      color: timer === val ? 'white' : '#1e3a8a',
+                      fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                      boxShadow: timer === val ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                      border: `2px solid ${timer === val ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                      cursor: 'pointer', transition: 'all 0.18s',
+                    }}
+                    whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                  >
+                    {val === null ? 'OFF' : `${val}s`}
+                  </motion.button>
+                ))}
+              </div>
+              {timer !== null && (
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+                  {allowMisses ? `Timeout = lose 1 life.` : `Timeout = eliminated.`} Player is skipped for the round.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Allow Misses toggle — only for Turns mode */}
           {mode !== 'multiplayer-blitz' && <div className="mb-6">
@@ -371,7 +406,7 @@ export const GameSetup = ({
           {selectedClub && (
             hidePlayerNames ? (
               <motion.button
-                onClick={() => onStart([], allowMisses)}
+                onClick={() => onStart([], allowMisses, timer)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 style={{
@@ -766,7 +801,7 @@ export const GameSetup = ({
             transition={{ delay: 0.16 }}
           >
             <motion.button
-              onClick={() => onStart(activePlayerNames, allowMisses)}
+              onClick={() => onStart(activePlayerNames, allowMisses, timer)}
               disabled={!canProceed}
               style={{
                 display: 'flex',

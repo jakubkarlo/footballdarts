@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameState, Throw, FootballPlayer } from '@/types/game';
 import { PlayerInput } from './PlayerInput';
-import { RotateCcw, EyeOff, Zap } from 'lucide-react';
+import { RotateCcw, EyeOff, Zap, HelpCircle, X } from 'lucide-react';
 import { useAllPlayers } from '@/hooks/useAllPlayers';
 import { searchPlayer } from '@/data/mockData';
 
@@ -257,6 +257,7 @@ export const BlitzGameBoard = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHandover, setShowHandover] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   const { allPlayers, isLoading: isLoadingSquad } = useAllPlayers();
 
@@ -405,6 +406,124 @@ export const BlitzGameBoard = ({
     );
   }
 
+  // ─── Rules overlay ────────────────────────────────────────────────────────
+  const OUTLINE_BTN_STYLE = {
+    fontFamily: 'Barlow Condensed, sans-serif',
+    fontWeight: 700,
+    fontSize: '0.78rem',
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase' as const,
+    color: '#7a6340',
+    background: 'white',
+    border: '1.5px solid #d4c4a0',
+    borderRadius: 4,
+    padding: '7px 14px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+  };
+
+  const rulesOverlay = (
+    <AnimatePresence>
+      {showRules && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+          onClick={() => setShowRules(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#ede3ce', backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)', borderRadius: 10, padding: '28px 28px 24px', maxWidth: 420, width: '100%', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.35), 0 0 0 2px rgba(255,255,255,0.15)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: '#b91c1c', letterSpacing: '0.04em', lineHeight: 1 }}>
+                  Zasady gry
+                </div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: '#8a7553', letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: 2 }}>
+                  Football Darts · Blitz
+                </div>
+              </div>
+              <button onClick={() => setShowRules(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8a7553', padding: 4, marginTop: 2 }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {[
+              {
+                num: '01',
+                title: 'Cel gry',
+                body: `Zaczynasz od ${gameState.startingScore} punktów. Wybierasz piłkarzy — ich suma występów odejmowana jest od Twojego wyniku. Wygrywa ten, kto jest najbliżej zera.`,
+                color: '#b91c1c',
+              },
+              {
+                num: '02',
+                title: 'Faza wybierania',
+                body: 'Każdy gracz po kolei wybiera piłkarzy po cichu (karty są zakryte). Podaj urządzenie następnemu graczowi — nie może widzieć Twoich kart.',
+                color: '#1e3a8a',
+              },
+              {
+                num: '03',
+                title: 'Reveal — Shoot!',
+                body: 'Gdy wszyscy skończą, kliknij "Shoot!" — wszystkie karty przewracają się jednocześnie. Wyniki rozstrzygane są natychmiastowo.',
+                color: '#b91c1c',
+              },
+              {
+                num: '04',
+                title: 'Bust',
+                body: 'Jeśli Twój wynik (po odjęciu wszystkich występów) zejdzie poniżej zera LUB suma Twoich kart przekroczy 180 — odpadasz (BUST).',
+                color: '#b91c1c',
+              },
+              ...(gameState.allowMisses ? [{
+                num: '05',
+                title: 'Miss',
+                body: 'Piłkarz z 0 występami dla tego klubu = karta zaznaczona jako miss. Jego wartość to 0 — nie eliminuje Cię samodzielnie, ale wchodzi do sumy.',
+                color: '#92400e',
+              }] : [{
+                num: '05',
+                title: 'Miss',
+                body: 'Piłkarz z 0 występami dla tego klubu nie może zostać dodany. System odrzuca taką kartę.',
+                color: '#92400e',
+              }]),
+              {
+                num: '06',
+                title: 'Wynik końcowy',
+                body: 'Wygrywa gracz z wynikiem najbliższym zera (nieujemnym). Jeśli obaj zbustują — wygrywa ten z wyższym (mniej ujemnym) wynikiem. Możliwy remis.',
+                color: '#15803d',
+              },
+            ].map(({ num, title, body, color }) => (
+              <div key={num} style={{ display: 'flex', gap: 14, marginBottom: 16 }}>
+                <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 4, background: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', letterSpacing: '0.05em' }}>{num}</span>
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color, letterSpacing: '0.06em', lineHeight: 1, marginBottom: 3 }}>
+                    {title}
+                  </div>
+                  <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 500, fontSize: '0.88rem', color: '#5a4a35', lineHeight: 1.45 }}>
+                    {body}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <motion.button
+              onClick={() => setShowRules(false)}
+              style={{ width: '100%', marginTop: 8, background: '#b91c1c', color: 'white', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.2rem', letterSpacing: '0.2em', padding: '11px 0', borderRadius: 5, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(185,28,28,0.3)' }}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            >
+              Rozumiem — gramy!
+            </motion.button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   // ─── Main layout ──────────────────────────────────────────────────────────
   return (
     <div
@@ -414,37 +533,34 @@ export const BlitzGameBoard = ({
         backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)',
       }}
     >
+      {rulesOverlay}
+
       {/* Header */}
       <motion.div
         className="flex items-center justify-between mb-5"
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <motion.button
-          onClick={onReset}
-          style={{
-            fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 700,
-            fontSize: '0.78rem',
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
-            color: '#7a6340',
-            background: 'white',
-            border: '1.5px solid #d4c4a0',
-            borderRadius: 4,
-            padding: '7px 14px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-          }}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.96 }}
-        >
-          <RotateCcw size={13} />
-          New Game
-        </motion.button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <motion.button
+            onClick={onReset}
+            style={OUTLINE_BTN_STYLE}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.96 }}
+          >
+            <RotateCcw size={13} />
+            New Game
+          </motion.button>
+          <motion.button
+            onClick={() => setShowRules(true)}
+            style={{ ...OUTLINE_BTN_STYLE, color: '#b91c1c', borderColor: '#b91c1c', padding: '7px 10px' }}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            title="Zasady gry"
+          >
+            <HelpCircle size={14} />
+          </motion.button>
+        </div>
 
         {gameState.club && (
           <div style={{
