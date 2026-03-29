@@ -276,20 +276,13 @@ export const BlitzGameBoard = ({
 
     const fp = await searchPlayer(gameState.club.id, playerName, playerId);
 
-    if (!fp || fp.appearances === 0) {
-      if (gameState.allowMisses) {
-        // Add as miss card — busted immediately on reveal
-        const missPlayer = fp ?? { id: `miss-${Date.now()}`, name: playerName, appearances: 0, position: '', nationality: '', photo: '' };
-        const newCard: BlitzCard = { footballPlayer: { ...missPlayer, appearances: 0 }, gamePlayerIndex: currentPickerIndex };
-        setCards(prev => {
-          const next = prev.map(arr => [...arr]);
-          next[currentPickerIndex] = [...next[currentPickerIndex], newCard];
-          return next;
-        });
-        setIsLoading(false);
-        return;
-      }
-      setError(fp ? `${fp.name} has no appearances for this club!` : `Not found: ${playerName}`);
+    if (!fp) {
+      setError(`Not found: ${playerName}`);
+      setIsLoading(false);
+      return;
+    }
+    if (fp.appearances > 180) {
+      setError(`${fp.name} ma ${fp.appearances} występów — przekracza limit 180!`);
       setIsLoading(false);
       return;
     }
@@ -475,20 +468,15 @@ export const BlitzGameBoard = ({
               {
                 num: '04',
                 title: 'Bust',
-                body: 'Jeśli Twój wynik (po odjęciu wszystkich występów) zejdzie poniżej zera LUB suma Twoich kart przekroczy 180 — odpadasz (BUST).',
+                body: 'Jeśli suma występów Twoich kart przekroczy wynik startowy (zejdzie poniżej zera) — odpadasz (BUST). Pojedyncza karta z > 180 występami jest niedozwolona.',
                 color: '#b91c1c',
               },
-              ...(gameState.allowMisses ? [{
+              {
                 num: '05',
-                title: 'Miss',
-                body: 'Piłkarz z 0 występami dla tego klubu = karta zaznaczona jako miss. Jego wartość to 0 — nie eliminuje Cię samodzielnie, ale wchodzi do sumy.',
+                title: 'Miss (0 appearances)',
+                body: 'Piłkarz z 0 występami dla tego klubu to karta o wartości 0. Możesz ją dodać — nie odejmuje nic i nie powoduje BUST.',
                 color: '#92400e',
-              }] : [{
-                num: '05',
-                title: 'Miss',
-                body: 'Piłkarz z 0 występami dla tego klubu nie może zostać dodany. System odrzuca taką kartę.',
-                color: '#92400e',
-              }]),
+              },
               {
                 num: '06',
                 title: 'Wynik końcowy',
@@ -736,7 +724,7 @@ export const BlitzGameBoard = ({
         const totalApps = (pIdx: number) =>
           (cards[pIdx] ?? []).reduce((s, c) => s + c.footballPlayer.appearances, 0);
         const scores = players.map((_, i) => gameState.startingScore - totalApps(i));
-        const busted = players.map((_, i) => scores[i] < 0 || totalApps(i) > 180);
+        const busted = players.map((_, i) => scores[i] < 0);
 
         // Winner = lowest non-negative score; -1 = all busted / draw
         const validScores = scores.map((s, i) => busted[i] ? Infinity : s);
@@ -811,7 +799,7 @@ export const BlitzGameBoard = ({
                               BUST
                             </div>
                             <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.55rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', textAlign: 'center' }}>
-                              {totalApps(pIdx) > 180 ? 'over 180' : 'below zero'}
+                              below zero
                             </div>
                           </div>
                         ) : (

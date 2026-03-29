@@ -87,6 +87,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const [historyRound, setHistoryRound] = useState(0);
   const [showRules, setShowRules] = useState(false);
   const [timeoutToast, setTimeoutToast] = useState<{ msg: string; isElim: boolean } | null>(null);
+  const [stopConfirming, setStopConfirming] = useState(false);
 
   const { allPlayers, isLoading: isLoadingSquad } = useAllPlayers();
 
@@ -272,7 +273,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
       : fp;
 
     if (!isMiss && usedIds.has(fp!.id)) { setError(`${fp!.name} already used!`); setIsLoading(false); return; }
-    setDraft(prev => { const n = prev.map(a => [...a]); n[curIdx] = [...n[curIdx], entry]; return n; });
+    setDraft(prev => { const n = prev.map(a => [...a]); n[curIdx] = [entry, ...n[curIdx]]; return n; });
     setIsLoading(false);
   };
 
@@ -307,6 +308,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
 
   const handleHandover = () => {
     setDraftStep(s => s + 1);
+    setStopConfirming(false);
     setPhase('drafting');
   };
 
@@ -321,6 +323,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     setDraftStep(0);
     setDraft(players.map(() => []));
     setRoundNum(r => r + 1);
+    setStopConfirming(false);
     setPhase('drafting');
     setError(null);
   };
@@ -451,40 +454,27 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
       initial={{ opacity: 0, y: -16 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div style={{ display: 'flex', gap: 6 }}>
-        <motion.button onClick={onReset} style={OUTLINE_BTN} whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}>
-          <RotateCcw size={13} /> New Game
-        </motion.button>
-        <motion.button
-          onClick={() => setShowRules(true)}
-          style={{ ...OUTLINE_BTN, color: '#1e3a8a', borderColor: '#1e3a8a', padding: '7px 10px' }}
-          whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}
-          title="Zasady gry"
-        >
-          <HelpCircle size={14} />
-        </motion.button>
-      </div>
-      {gameState.club && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 4, padding: '5px 12px', boxShadow: '0 2px 6px rgba(0,0,0,0.1)' }}>
+      {gameState.club ? (
+        <div style={{ ...OUTLINE_BTN, color: '#1e3a8a', borderColor: '#1e3a8a', padding: '7px 12px', gap: 8, cursor: 'default' }}>
           <img
             src={gameState.club.logo}
             alt={gameState.club.name}
-            style={{ width: 24, height: 24, objectFit: 'contain' }}
+            style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
             onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
           />
-          <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.95rem', color: '#1e3a8a', letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: '#1e3a8a', letterSpacing: '0.04em' }}>
             {gameState.club.name}
           </span>
         </div>
-      )}
-      <div style={{
-        background: '#1e3a8a', color: 'white',
-        fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700,
-        fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase',
-        padding: '6px 12px', borderRadius: 4,
-      }}>
-        Turns · R{roundNum}
-      </div>
+      ) : <div />}
+      <motion.button
+        onClick={() => setShowRules(true)}
+        style={{ ...OUTLINE_BTN, color: '#1e3a8a', borderColor: '#1e3a8a', padding: '7px 10px' }}
+        whileHover={{ y: -1 }} whileTap={{ scale: 0.96 }}
+        title="Zasady gry"
+      >
+        <HelpCircle size={14} />
+      </motion.button>
     </motion.div>
   );
 
@@ -825,9 +815,14 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
 
   // ── DRAFTING ──────────────────────────────────────────────────────────────
 
-  // Timer ring percentage
-  const timerPct = timerDuration && timeLeft !== null ? (timeLeft / timerDuration) : 1;
-  const timerColor = timerPct > 0.4 ? '#15803d' : timerPct > 0.2 ? '#d97706' : '#b91c1c';
+  // Score ring SVG
+  const SCORE_R = 46;
+  const SCORE_C = 2 * Math.PI * SCORE_R;
+  const scoreFraction = Math.max(0, Math.min(1, scores[curIdx] / gameState.startingScore));
+
+  // Timer circle
+  const timerFraction = timerDuration && timeLeft !== null ? timeLeft / timerDuration : 1;
+  const timerRingColor = timerFraction > 0.4 ? '#15803d' : timerFraction > 0.2 ? '#d97706' : '#b91c1c';
 
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-5" style={BG}>
@@ -842,27 +837,11 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 70,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
+            style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}
           >
-            <div style={{
-              background: timeoutToast.isElim ? '#b91c1c' : '#92400e',
-              color: 'white',
-              borderRadius: 10,
-              padding: '28px 40px',
-              textAlign: 'center',
-              boxShadow: '0 12px 48px rgba(0,0,0,0.4)',
-              maxWidth: 320,
-            }}>
-              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.8rem', letterSpacing: '0.06em', lineHeight: 1, marginBottom: 10 }}>
-                ⏱ TIMEOUT
-              </div>
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '1rem', lineHeight: 1.4, opacity: 0.92 }}>
-                {timeoutToast.msg}
-              </div>
+            <div style={{ background: timeoutToast.isElim ? '#b91c1c' : '#92400e', color: 'white', borderRadius: 10, padding: '28px 40px', textAlign: 'center', boxShadow: '0 12px 48px rgba(0,0,0,0.4)', maxWidth: 320 }}>
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.8rem', letterSpacing: '0.06em', lineHeight: 1, marginBottom: 10 }}>⏱ TIMEOUT</div>
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '1rem', lineHeight: 1.4, opacity: 0.92 }}>{timeoutToast.msg}</div>
             </div>
           </motion.div>
         )}
@@ -874,167 +853,212 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         animate={{ opacity: 1, x: 0 }}
         className="flex flex-col items-center"
       >
-        {/* Player label + timer */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: curColor, borderRadius: 4, padding: '6px 20px' }}>
-              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: 'white', letterSpacing: '0.06em' }}>
-                {curPlayer.name}
-              </span>
-              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                — pick your players
-              </span>
-            </div>
-            {/* Timer display */}
-            {timerDuration && timeLeft !== null && (
-              <div style={{
-                width: 48, height: 48, borderRadius: '50%',
-                background: `conic-gradient(${timerColor} ${timerPct * 360}deg, rgba(0,0,0,0.08) 0deg)`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                position: 'relative',
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%', background: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: timerColor, lineHeight: 1 }}>
-                    {timeLeft}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-          {allowMisses && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'white', borderRadius: 4, padding: '4px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: '#8a7553', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Lives</span>
-              <span style={{ fontSize: '1rem', letterSpacing: '0.05em' }}>
+        {/* ── Player strip ── */}
+        <div style={{ width: '100%', maxWidth: 420, marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: curColor, borderRadius: 6, padding: '8px 16px' }}>
+            <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
+              {curPlayer.name}
+            </span>
+            {allowMisses && (
+              <span style={{ fontSize: '1.1rem', letterSpacing: '0.08em' }}>
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <span key={i} style={{ color: i < lives[curIdx] ? '#b91c1c' : '#d4c4a0', transition: 'color 0.2s' }}>♥</span>
+                  <span key={i} style={{ color: i < lives[curIdx] ? 'white' : 'rgba(255,255,255,0.25)', transition: 'color 0.2s' }}>♥</span>
                 ))}
               </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── Score circle + Timer circle ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 18 }}>
+          <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
+            <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="10" />
+              <circle
+                cx="54" cy="54" r={SCORE_R}
+                fill="none" stroke={curColor} strokeWidth="10"
+                strokeDasharray={SCORE_C}
+                strokeDashoffset={SCORE_C * (1 - scoreFraction)}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <motion.span
+                key={scores[curIdx]}
+                initial={{ scale: 1.2, opacity: 0.6 }}
+                animate={{ scale: 1, opacity: 1 }}
+                style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', color: curColor, lineHeight: 1 }}
+              >
+                {scores[curIdx]}
+              </motion.span>
+            </div>
+          </div>
+
+          {timerDuration && timeLeft !== null && (
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%', flexShrink: 0,
+              background: `conic-gradient(${timerRingColor} ${timerFraction * 360}deg, rgba(0,0,0,0.08) 0deg)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 3px 10px rgba(0,0,0,0.15)',
+            }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ede3ce', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.2rem', color: timerRingColor, lineHeight: 1 }}>{timeLeft}</span>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.42rem', color: timerRingColor, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.7 }}>sec</span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Previously used players */}
-        {allThrows[curIdx].length > 0 && (
-          <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.62rem', color: '#a09070', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Już wykorzystani
+        {/* ── Draft cards — horizontal scroll ── */}
+        <div style={{ width: '100%', maxWidth: 420, marginBottom: 14, minHeight: 140 }}>
+          {curDraft.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140, border: '2px dashed rgba(0,0,0,0.1)', borderRadius: 8 }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                no players selected
+              </span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, paddingLeft: 4, paddingRight: 4, scrollbarWidth: 'none' }}>
+              {curDraft.map((fp, i) => (
+                <motion.div
+                  key={fp.id + i}
+                  style={{ flexShrink: 0 }}
+                  initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
+                  animate={{ opacity: 1, scale: 1, rotate: i % 2 === 0 ? -1.5 : 1.5 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                  <CardBack
+                    playerName={curPlayer.name}
+                    color={fp.isMiss ? '#b91c1c' : curColor}
+                    cardIndex={i}
+                    footballPlayerName={fp.name}
+                    onRemove={() => handleRemove(i)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Used players (compact one-liner) ── */}
+        {allThrows[curIdx].length > 0 && (
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: '#a09070', letterSpacing: '0.16em', textTransform: 'uppercase', flexShrink: 0 }}>
+              Użyci:
+            </span>
+            <div style={{ display: 'flex', gap: 4, overflow: 'hidden', flexWrap: 'nowrap' }}>
               {allThrows[curIdx].flat().map(t => (
-                <div key={t.playerId} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: curColor, background: `${curColor}18`, border: `1px solid ${curColor}40`, borderRadius: 3, padding: '3px 8px', letterSpacing: '0.03em', textDecoration: 'line-through', textDecorationColor: `${curColor}80` }}>
+                <span key={t.playerId} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: curColor, background: `${curColor}14`, border: `1px solid ${curColor}30`, borderRadius: 3, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap', textDecoration: 'line-through', textDecorationColor: `${curColor}60`, flexShrink: 0 }}>
                   {t.playerName}
-                </div>
+                </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* Draft cards */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 14, minHeight: 80 }}>
-          {curDraft.length === 0 ? (
-            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.78rem', color: '#a09070', letterSpacing: '0.1em', textTransform: 'uppercase', alignSelf: 'center' }}>
-              No players selected yet
-            </div>
-          ) : curDraft.map((fp, i) => (
-            <motion.div
-              key={fp.id + i}
-              initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
-              animate={{ opacity: 1, scale: 1, rotate: (i % 2 === 0 ? -1.5 : 1.5) }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            >
-              <CardBack
-                playerName={curPlayer.name}
-                color={curColor}
-                cardIndex={i}
-                footballPlayerName={fp.name}
-                onRemove={() => handleRemove(i)}
-              />
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div style={{ width: '100%', maxWidth: 420, marginBottom: 10 }}>
+        {/* ── Search ── */}
+        <div style={{ width: '100%', maxWidth: 420, marginBottom: 8 }}>
           <PlayerInput
             onSubmit={handleAdd}
             isLoading={isLoading}
             disabled={false}
-            placeholder={`Search player from ${gameState.club?.name ?? ''}...`}
+            placeholder="type player"
             suggestions={allPlayers}
             isLoadingSuggestions={isLoadingSquad}
+            hideSubmitButton
           />
         </div>
 
-        {/* Error */}
+        {/* ── Error ── */}
         <AnimatePresence>
           {error && (
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.82rem', color: '#b91c1c', letterSpacing: '0.06em', marginBottom: 12, padding: '6px 14px', background: '#fef2f2', border: '1.5px solid #b91c1c', borderRadius: 4 }}
+              initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              style={{ width: '100%', maxWidth: 420, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.82rem', color: '#b91c1c', letterSpacing: '0.06em', marginBottom: 10, padding: '6px 14px', background: '#fef2f2', border: '1.5px solid #b91c1c', borderRadius: 4 }}
             >
               {error}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Actions: Lock In + Stop */}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        {/* ── Actions ── */}
+        <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8 }}>
+          {/* Confirm choice — main action */}
           <motion.button
             onClick={handleLockIn}
             disabled={curDraft.length === 0}
             style={{
+              flex: 1,
               background: curDraft.length === 0 ? '#c4b89a' : curColor,
               color: 'white',
               fontFamily: 'Bebas Neue, sans-serif',
               fontSize: '1.3rem',
-              letterSpacing: '0.15em',
-              padding: '12px 44px',
-              borderRadius: 5,
+              letterSpacing: '0.16em',
+              padding: '14px 0',
+              borderRadius: 6,
               border: 'none',
               cursor: curDraft.length === 0 ? 'default' : 'pointer',
-              boxShadow: curDraft.length === 0 ? 'none' : '0 4px 16px rgba(0,0,0,0.2)',
+              boxShadow: curDraft.length === 0 ? 'none' : '0 4px 18px rgba(0,0,0,0.2)',
             }}
-            whileHover={curDraft.length > 0 ? { scale: 1.04, y: -2 } : {}}
+            whileHover={curDraft.length > 0 ? { scale: 1.02, y: -2 } : {}}
             whileTap={curDraft.length > 0 ? { scale: 0.97 } : {}}
           >
-            {draftStep < draftOrder.length - 1 ? 'Lock In — Pass Device' : 'Lock In — Resolve!'}
+            {draftStep < draftOrder.length - 1 ? 'Confirm — Pass Device' : 'Confirm — Resolve!'}
           </motion.button>
 
-          <motion.button
-            onClick={handleStop}
-            title="Stop playing — lock your current score"
-            style={{
-              background: 'white',
-              color: '#92400e',
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '0.9rem',
-              letterSpacing: '0.12em',
-              padding: '12px 16px',
-              borderRadius: 5,
-              border: '2px solid #d97706',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            }}
-            whileHover={{ scale: 1.04, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-          >
-            <StopCircle size={16} />
-            STOP
-          </motion.button>
-        </div>
-
-        {/* Current score reminder */}
-        <div style={{ marginTop: 14, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.1em' }}>
-          Current score: <span style={{ color: curColor, fontWeight: 700 }}>{scores[curIdx]}</span>
+          {/* Stop — compact trigger */}
+          <AnimatePresence mode="wait">
+            {!stopConfirming ? (
+              <motion.button
+                key="stop-idle"
+                onClick={() => setStopConfirming(true)}
+                style={{
+                  width: 84, flexShrink: 0,
+                  background: 'white', borderRadius: 6,
+                  border: '2px solid #d4c4a0', cursor: 'pointer',
+                  padding: '8px 4px', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 4,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+                }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                whileHover={{ scale: 1.04, borderColor: '#92400e' }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <StopCircle size={22} style={{ color: '#92400e' }} />
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#92400e', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.2, textAlign: 'center' }}>
+                  Stop<br />Playing
+                </span>
+              </motion.button>
+            ) : (
+              <motion.div
+                key="stop-confirm"
+                initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
+                style={{
+                  width: 84, flexShrink: 0, background: '#fff8f0',
+                  borderRadius: 6, border: '2px solid #92400e',
+                  padding: '6px 5px', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: 4,
+                }}
+              >
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: '#92400e', letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'center', lineHeight: 1.3 }}>
+                  Lock score at {scores[curIdx]}?
+                </span>
+                <button
+                  onClick={handleStop}
+                  style={{ width: '100%', background: '#92400e', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer', fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.8rem', letterSpacing: '0.1em', padding: '4px 0' }}
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setStopConfirming(false)}
+                  style={{ width: '100%', background: 'none', color: '#92400e', border: '1px solid #d4c4a0', borderRadius: 3, cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.06em', padding: '3px 0' }}
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>
