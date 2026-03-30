@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Club, GameMode, StartingScore } from '@/types/game';
 import { mockClubs, fetchClubs, getRandomClubAsync } from '@/data/mockData';
-import { Shuffle, ArrowRight, ArrowLeft, User } from 'lucide-react';
+import { Shuffle, ArrowRight, ArrowLeft, User, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -26,12 +26,12 @@ const getInitialPlayerNames = (mode: GameMode): string[] => {
 
 const stickerShadow = '0 2px 6px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.07)';
 
-const LEAGUES: { country: string; label: string; flag: string }[] = [
-  { country: 'England',  label: 'Premier League', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { country: 'Spain',    label: 'La Liga',         flag: '🇪🇸' },
-  { country: 'Germany',  label: 'Bundesliga',      flag: '🇩🇪' },
-  { country: 'Italy',    label: 'Serie A',         flag: '🇮🇹' },
-  { country: 'France',   label: 'Ligue 1',         flag: '🇫🇷' },
+const LEAGUES: { country: string; flag: string; leagues: { value: string; label: string }[] }[] = [
+  { country: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', leagues: [{ value: 'England', label: 'Premier League' }] },
+  { country: 'Spain',   flag: '🇪🇸',        leagues: [{ value: 'Spain',   label: 'La Liga'       }] },
+  { country: 'Germany', flag: '🇩🇪',        leagues: [{ value: 'Germany', label: 'Bundesliga'    }] },
+  { country: 'Italy',   flag: '🇮🇹',        leagues: [{ value: 'Italy',   label: 'Serie A'       }] },
+  { country: 'France',  flag: '🇫🇷',        leagues: [{ value: 'France',  label: 'Ligue 1'       }] },
 ];
 
 const CARD_PALETTES = [
@@ -68,6 +68,8 @@ export const GameSetup = ({
   const [step, setStep] = useState<'config' | 'club' | 'players'>(hidePlayerNames ? 'club' : 'config');
   const [clubs, setClubs] = useState<Club[]>(mockClubs);
   const [leagueFilter, setLeagueFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [clubModalOpen, setClubModalOpen] = useState(false);
   const [allowMisses, setAllowMisses] = useState(false);
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export const GameSetup = ({
   const handleRandomClub = async () => {
     const club = await getRandomClubAsync();
     setLeagueFilter(null);
+    setSearchQuery('');
     onClubSelect(club);
   };
 
@@ -273,56 +276,15 @@ export const GameSetup = ({
             >
               Choose Your Club
             </h1>
-            <p
-              style={{
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 600,
-                fontSize: '0.82rem',
-                letterSpacing: '0.12em',
-                color: '#8a7553',
-                textTransform: 'uppercase',
-                marginTop: '4px',
-              }}
-            >
-              Pick from the album
-            </p>
           </motion.div>
 
-          {/* Random + Selected preview */}
+          {/* Card preview */}
           <motion.div
-            className="flex items-center gap-5 mb-6"
+            className="mb-5"
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
           >
-            <motion.button
-              onClick={handleRandomClub}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '7px',
-                padding: '10px 22px',
-                borderRadius: '5px',
-                background: 'white',
-                border: '2px dashed #1e3a8a',
-                color: '#1e3a8a',
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                boxShadow: stickerShadow,
-                flexShrink: 0,
-              }}
-              whileHover={{ scale: 1.04, y: -1 }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Shuffle size={15} />
-              Random
-            </motion.button>
-
-            {/* Selected club — Match Attax card preview */}
             {selectedClub && (() => {
               const idx = clubs.findIndex(c => c.id === selectedClub.id);
               const pal = CARD_PALETTES[(idx >= 0 ? idx : 0) % CARD_PALETTES.length];
@@ -333,24 +295,23 @@ export const GameSetup = ({
                   animate={{ scale: 1, opacity: 1, rotate: 0 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 18 }}
                   style={{
-                    width: 90,
+                    width: 160,
                     aspectRatio: '2/3',
-                    borderRadius: '7px',
+                    borderRadius: '10px',
                     overflow: 'hidden',
                     position: 'relative',
-                    flexShrink: 0,
-                    boxShadow: `0 0 0 2.5px white, 0 0 0 4.5px ${pal.via}, 0 10px 32px ${pal.from}88`,
+                    boxShadow: `0 0 0 3px white, 0 0 0 5.5px ${pal.via}, 0 16px 48px ${pal.from}99`,
                   }}
                 >
                   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(145deg, ${pal.from} 0%, ${pal.via} 55%, ${pal.accent}66 100%)` }} />
                   <div style={{ position: 'absolute', left: '-30%', right: '-30%', top: '28%', bottom: '26%', background: 'rgba(255,255,255,0.13)', transform: 'rotate(-18deg)' }} />
                   <div style={{ position: 'absolute', left: '-20%', right: '-20%', top: '34%', height: '18%', background: 'rgba(255,255,255,0.22)', transform: 'rotate(-18deg)' }} />
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '30%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-                    <img src={selectedClub.logo} alt={selectedClub.name} style={{ width: '62%', height: '62%', objectFit: 'contain', filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.6))' }} onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }} />
+                    <img src={selectedClub.logo} alt={selectedClub.name} style={{ width: '62%', height: '62%', objectFit: 'contain', filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.6))' }} onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }} />
                   </div>
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 5px', zIndex: 2, borderTop: `2px solid ${pal.accent}66` }}>
-                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.72rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1.1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{selectedClub.name}</div>
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.48rem', color: pal.accent, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 1 }}>{selectedClub.country}</div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '6px 8px', zIndex: 2, borderTop: `2px solid ${pal.accent}66` }}>
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1.1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{selectedClub.name}</div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.62rem', color: pal.accent, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>{selectedClub.country}</div>
                   </div>
                   <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4 }} />
                 </motion.div>
@@ -358,206 +319,275 @@ export const GameSetup = ({
             })()}
 
             {!selectedClub && (
-              <div style={{ width: 90, aspectRatio: '2/3', borderRadius: '7px', border: '2px dashed rgba(30,58,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.55rem', color: 'rgba(30,58,138,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', padding: '0 6px' }}>No club selected</span>
-              </div>
-            )}
-
-            {selectedClub && (
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.3rem', color: '#1e3a8a', letterSpacing: '0.04em', lineHeight: 1.1 }}>{selectedClub.name}</div>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.68rem', color: '#8a7553', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 2 }}>{selectedClub.country}</div>
+              <div style={{ width: 160, aspectRatio: '2/3', borderRadius: '10px', border: '2px dashed rgba(30,58,138,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: 'rgba(30,58,138,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', padding: '0 10px' }}>No club selected</span>
               </div>
             )}
           </motion.div>
 
-          {/* Next */}
-          {selectedClub && (
-            <motion.div
-              className="mb-5"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {hidePlayerNames ? (
-                <motion.button
-                  onClick={() => onStart([], allowMisses)}
-                  style={{
-                    background: '#1e3a8a',
-                    color: 'white',
-                    fontFamily: 'Bebas Neue, sans-serif',
-                    fontSize: '1.4rem',
-                    letterSpacing: '0.15em',
-                    padding: '12px 40px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  DONE
-                </motion.button>
-              ) : (
-                <motion.button
-                  onClick={() => setStep('players')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: '#1e3a8a',
-                    color: 'white',
-                    fontFamily: 'Bebas Neue, sans-serif',
-                    fontSize: '1.4rem',
-                    letterSpacing: '0.15em',
-                    padding: '12px 40px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                  }}
-                  whileHover={{ scale: 1.04, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  NEXT
-                  <ArrowRight size={18} />
-                </motion.button>
-              )}
-            </motion.div>
-          )}
-
-          {/* League filters */}
+          {/* Buttons row: Random + Browse */}
           <motion.div
-            className="flex flex-wrap gap-2 mb-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            className="flex gap-3 mb-4"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.14 }}
           >
-            <button
-              onClick={() => setLeagueFilter(null)}
+            <motion.button
+              onClick={handleRandomClub}
               style={{
-                padding: '5px 14px',
-                borderRadius: '20px',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 700,
-                fontSize: '0.72rem',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                background: leagueFilter === null ? '#1e3a8a' : 'white',
-                color: leagueFilter === null ? 'white' : '#7a6340',
-                boxShadow: stickerShadow,
-                transition: 'all 0.18s',
+                display: 'flex', alignItems: 'center', gap: '7px',
+                padding: '10px 20px', borderRadius: '5px',
+                background: 'white', border: '2px dashed #1e3a8a', color: '#1e3a8a',
+                fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700,
+                fontSize: '0.85rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+                cursor: 'pointer', boxShadow: stickerShadow,
               }}
+              whileHover={{ scale: 1.04, y: -1 }}
+              whileTap={{ scale: 0.97 }}
             >
-              All
-            </button>
-            {LEAGUES.map(({ country, label, flag }) => (
-              <button
-                key={country}
-                onClick={() => setLeagueFilter(leagueFilter === country ? null : country)}
+              <Shuffle size={15} />
+              Random
+            </motion.button>
+
+            <motion.button
+              onClick={() => setClubModalOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '7px',
+                padding: '10px 20px', borderRadius: '5px',
+                background: 'white', border: '2px solid rgba(30,58,138,0.22)', color: '#1e3a8a',
+                fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700,
+                fontSize: '0.85rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+                cursor: 'pointer', boxShadow: stickerShadow,
+              }}
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <Search size={14} />
+              Browse clubs
+            </motion.button>
+          </motion.div>
+
+          {/* Next — below buttons, appears when club selected */}
+          {selectedClub && (
+            hidePlayerNames ? (
+              <motion.button
+                onClick={() => onStart([], allowMisses)}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
                 style={{
-                  padding: '5px 14px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'Barlow Condensed, sans-serif',
-                  fontWeight: 700,
-                  fontSize: '0.72rem',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  background: leagueFilter === country ? '#1e3a8a' : 'white',
-                  color: leagueFilter === country ? 'white' : '#7a6340',
-                  boxShadow: stickerShadow,
-                  transition: 'all 0.18s',
+                  background: '#1e3a8a', color: 'white',
+                  fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem',
+                  letterSpacing: '0.15em', padding: '12px 40px',
+                  borderRadius: '5px', border: 'none', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
+                }}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                DONE
+              </motion.button>
+            ) : (
+              <motion.button
+                onClick={() => setStep('players')}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: '#1e3a8a', color: 'white',
+                  fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem',
+                  letterSpacing: '0.15em', padding: '12px 40px',
+                  borderRadius: '5px', border: 'none', cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
+                }}
+                whileHover={{ scale: 1.04, y: -2 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                NEXT
+                <ArrowRight size={18} />
+              </motion.button>
+            )
+          )}
+
+          {/* Club browser modal */}
+          {clubModalOpen && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.55)',
+                backdropFilter: 'blur(3px)',
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px',
+              }}
+              onClick={() => setClubModalOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.94, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, y: 20 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: '#ede3ce',
+                  backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)`,
+                  borderRadius: '10px',
+                  width: '100%',
+                  maxWidth: '680px',
+                  maxHeight: '85dvh',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  boxShadow: '0 24px 60px rgba(0,0,0,0.4)',
                 }}
               >
-                <span>{flag}</span>
-                {label}
-              </button>
-            ))}
-          </motion.div>
-
-          {/* Club card grid — Match Attax style */}
-          <motion.div
-            className="w-full max-w-4xl"
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-          >
-            <ScrollArea className="h-[calc(100dvh-420px)] min-h-[200px] w-full">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-1 pr-4">
-                {clubs.map((club, i) => {
-                  if (leagueFilter && club.country !== leagueFilter) return null;
-                  const isSelected = selectedClub?.id === club.id;
-                  const p = CARD_PALETTES[i % CARD_PALETTES.length];
-                  return (
-                    <motion.button
-                      key={club.id}
-                      onClick={() => onClubSelect(club)}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.015 * i, type: 'spring', stiffness: 280, damping: 24 }}
-                      whileHover={{ y: -6, scale: 1.05, rotate: 0.5 }}
-                      whileTap={{ scale: 0.95 }}
+                {/* Modal header */}
+                <div style={{ padding: '16px 20px 12px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(165,138,90,0.3)' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#8a7553', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search clubs..."
+                      autoFocus
                       style={{
-                        border: 'none', cursor: 'pointer', padding: 0,
-                        background: 'transparent', borderRadius: '8px',
-                        position: 'relative',
-                        boxShadow: isSelected
-                          ? `0 0 0 3px white, 0 0 0 5px ${p.via}, 0 12px 40px ${p.from}88`
-                          : '0 4px 14px rgba(0,0,0,0.22)',
-                        transition: 'box-shadow 0.25s ease',
-                        overflow: 'hidden', aspectRatio: '2/3', display: 'flex', flexDirection: 'column',
+                        width: '100%',
+                        padding: '9px 10px 9px 32px',
+                        borderRadius: '5px',
+                        border: '2px solid rgba(30,58,138,0.18)',
+                        background: 'white',
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        letterSpacing: '0.04em',
+                        color: '#1e3a8a',
+                        boxShadow: stickerShadow,
+                        outline: 'none',
+                        transition: 'border-color 0.15s',
                       }}
-                    >
-                      {/* Background gradient */}
-                      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(145deg, ${p.from} 0%, ${p.via} 55%, ${p.accent}66 100%)` }} />
+                      onFocus={(e) => { e.currentTarget.style.borderColor = '#1e3a8a'; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(30,58,138,0.18)'; }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setClubModalOpen(false)}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: 'white',
+                      color: '#7a6340',
+                      cursor: 'pointer',
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: stickerShadow,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
 
-                      {/* Diagonal slash */}
-                      <div style={{ position: 'absolute', left: '-30%', right: '-30%', top: '28%', bottom: '26%', background: 'rgba(255,255,255,0.11)', transform: 'rotate(-18deg)', pointerEvents: 'none' }} />
-                      <div style={{ position: 'absolute', left: '-20%', right: '-20%', top: '34%', height: '18%', background: 'rgba(255,255,255,0.2)', transform: 'rotate(-18deg)', pointerEvents: 'none' }} />
+                {/* League filter dropdown */}
+                <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(165,138,90,0.2)' }}>
+                  <select
+                    value={leagueFilter ?? ''}
+                    onChange={(e) => setLeagueFilter(e.target.value || null)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '5px',
+                      border: '2px solid rgba(30,58,138,0.18)',
+                      background: 'white',
+                      fontFamily: 'Barlow Condensed, sans-serif',
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      letterSpacing: '0.04em',
+                      color: leagueFilter ? '#1e3a8a' : '#8a7553',
+                      boxShadow: stickerShadow,
+                      outline: 'none',
+                      cursor: 'pointer',
+                      appearance: 'auto',
+                    }}
+                  >
+                    <option value="">All leagues</option>
+                    {LEAGUES.map(({ country, flag, leagues }) => (
+                      <optgroup key={country} label={`${flag} ${country}`}>
+                        {leagues.map(({ value, label }) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
 
-
-                      {/* Card number — top left */}
-                      <div style={{ position: 'absolute', top: 6, left: 7, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900, fontSize: '0.5rem', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', zIndex: 2 }}>
-                        {String(i + 1).padStart(3, '0')}
-                      </div>
-
-                      {/* Selected check — top right */}
-                      {isSelected && (
-                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ position: 'absolute', top: 5, right: 6, width: 18, height: 18, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: p.via, fontWeight: 900, zIndex: 3, boxShadow: `0 2px 8px ${p.from}88` }}>✓</motion.div>
-                      )}
-
-                      {/* Logo */}
-                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '30%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-                        <motion.img
-                          src={club.logo} alt={club.name}
-                          animate={isSelected ? { scale: [1, 1.12, 1] } : { scale: 1 }}
-                          transition={{ duration: 0.35 }}
-                          style={{ width: '68%', height: '68%', objectFit: 'contain', filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.6))' }}
-                          onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
-                        />
-                      </div>
-
-                      {/* Footer */}
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 5px', zIndex: 2, borderTop: `2px solid ${p.accent}66` }}>
-                        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1.1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{club.name}</div>
-                        <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.5rem', color: p.accent, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 1 }}>{club.country}</div>
-                      </div>
-
-                      {isSelected && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, borderRadius: '8px' }} />}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          </motion.div>
-
+                {/* Club grid */}
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-4">
+                    {clubs.map((club, i) => {
+                      if (leagueFilter && club.country !== leagueFilter) return null;
+                      if (searchQuery.trim() && !club.name.toLowerCase().includes(searchQuery.toLowerCase())) return null;
+                      const isSelected = selectedClub?.id === club.id;
+                      const p = CARD_PALETTES[i % CARD_PALETTES.length];
+                      return (
+                        <motion.button
+                          key={club.id}
+                          onClick={() => { onClubSelect(club); setClubModalOpen(false); }}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.015 * i, type: 'spring', stiffness: 280, damping: 24 }}
+                          whileHover={{ y: -6, scale: 1.05, rotate: 0.5 }}
+                          whileTap={{ scale: 0.95 }}
+                          style={{
+                            border: 'none', cursor: 'pointer', padding: 0,
+                            background: 'transparent', borderRadius: '8px',
+                            position: 'relative',
+                            boxShadow: isSelected
+                              ? `0 0 0 3px white, 0 0 0 5px ${p.via}, 0 12px 40px ${p.from}88`
+                              : '0 4px 14px rgba(0,0,0,0.22)',
+                            transition: 'box-shadow 0.25s ease',
+                            overflow: 'hidden', aspectRatio: '2/3', display: 'flex', flexDirection: 'column',
+                          }}
+                        >
+                          <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(145deg, ${p.from} 0%, ${p.via} 55%, ${p.accent}66 100%)` }} />
+                          <div style={{ position: 'absolute', left: '-30%', right: '-30%', top: '28%', bottom: '26%', background: 'rgba(255,255,255,0.11)', transform: 'rotate(-18deg)', pointerEvents: 'none' }} />
+                          <div style={{ position: 'absolute', left: '-20%', right: '-20%', top: '34%', height: '18%', background: 'rgba(255,255,255,0.2)', transform: 'rotate(-18deg)', pointerEvents: 'none' }} />
+                          <div style={{ position: 'absolute', top: 6, left: 7, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 900, fontSize: '0.5rem', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', zIndex: 2 }}>
+                            {String(i + 1).padStart(3, '0')}
+                          </div>
+                          {isSelected && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ position: 'absolute', top: 5, right: 6, width: 18, height: 18, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: p.via, fontWeight: 900, zIndex: 3, boxShadow: `0 2px 8px ${p.from}88` }}>✓</motion.div>
+                          )}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '30%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
+                            <motion.img
+                              src={club.logo} alt={club.name}
+                              animate={isSelected ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+                              transition={{ duration: 0.35 }}
+                              style={{ width: '68%', height: '68%', objectFit: 'contain', filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.6))' }}
+                              onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+                            />
+                          </div>
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 5px', zIndex: 2, borderTop: `2px solid ${p.accent}66` }}>
+                            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1.1, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{club.name}</div>
+                            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.5rem', color: p.accent, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 1 }}>{club.country}</div>
+                          </div>
+                          {isSelected && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, borderRadius: '8px' }} />}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </>
       ) : (
         <>
