@@ -46,6 +46,7 @@ export interface GamePlayer {
   isActive: boolean;
   isBusted: boolean;
   isFinished: boolean;
+  isStopped?: boolean;
   sessionToken?: string;
   lives: number;
 }
@@ -64,6 +65,7 @@ export interface GameState {
   sessionId: string | null;
   myPlayerIndex: number | null;
   allowMisses: boolean;
+  timer: 30 | 60 | 90 | 180 | 300 | null;
 }
 
 export interface PlayerSearchResult {

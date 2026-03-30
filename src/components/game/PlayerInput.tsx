@@ -31,15 +31,17 @@ interface PlayerInputProps {
   placeholder?: string;
   suggestions?: SquadPlayer[];
   isLoadingSuggestions?: boolean;
+  hideSubmitButton?: boolean;
 }
 
-export const PlayerInput = ({ 
-  onSubmit, 
-  isLoading, 
+export const PlayerInput = ({
+  onSubmit,
+  isLoading,
   disabled,
   placeholder = "Enter player name...",
   suggestions = [],
   isLoadingSuggestions = false,
+  hideSubmitButton = false,
 }: PlayerInputProps) => {
   const [value, setValue] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -206,21 +208,23 @@ export const PlayerInput = ({
           </AnimatePresence>
         </div>
         
-        <Button
-          type="submit"
-          disabled={!value.trim() || isLoading || disabled}
-          className={cn(
-            'h-14 px-6 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl',
-            'hover:from-primary/90 hover:to-primary/70 disabled:opacity-50',
-            'transition-all duration-200 shadow-lg shadow-primary/20'
-          )}
-        >
-          {isLoading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Target className="w-5 h-5" />
-          )}
-        </Button>
+        {!hideSubmitButton && (
+          <Button
+            type="submit"
+            disabled={!value.trim() || isLoading || disabled}
+            className={cn(
+              'h-14 px-6 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl',
+              'hover:from-primary/90 hover:to-primary/70 disabled:opacity-50',
+              'transition-all duration-200 shadow-lg shadow-primary/20'
+            )}
+          >
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Target className="w-5 h-5" />
+            )}
+          </Button>
+        )}
       </div>
     </form>
   );

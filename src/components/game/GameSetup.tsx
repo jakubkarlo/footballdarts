@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Club, GameMode, StartingScore } from '@/types/game';
 import { mockClubs, fetchClubs, getRandomClubAsync } from '@/data/mockData';
-import { Shuffle, ArrowRight, ArrowLeft, User, Search } from 'lucide-react';
+import { Shuffle, ArrowRight, ArrowLeft, User, Search, HelpCircle, X } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -14,7 +15,7 @@ interface GameSetupProps {
   onModeSelect?: (mode: GameMode) => void;
   onScoreSelect?: (score: StartingScore) => void;
   onClubSelect: (club: Club) => void;
-  onStart: (playerNames: string[], allowMisses?: boolean) => void;
+  onStart: (playerNames: string[], allowMisses?: boolean, timer?: 30 | 60 | 90 | 180 | 300 | null) => void;
   onBack: () => void;
   hidePlayerNames?: boolean;
 }
@@ -45,9 +46,23 @@ const CARD_PALETTES = [
   { from: '#1f2937', via: '#374151', accent: '#d1d5db' },
 ];
 
-const MULTIPLAYER_MODES: { mode: GameMode; label: string; subtitle: string; description: string; number: string; color: string }[] = [
-  { mode: 'multiplayer-turns', label: 'TURNS', subtitle: 'Multiplayer', description: 'Up to 4 players taking turns', number: '002', color: '#b91c1c' },
-  { mode: 'multiplayer-blitz', label: 'BLITZ', subtitle: 'Sudden Death', description: 'All players play simultaneously — no mercy!', number: '003', color: '#92400e' },
+const MULTIPLAYER_MODES: { mode: GameMode; label: string; subtitle: string; description: string; hint: string; color: string }[] = [
+  {
+    mode: 'multiplayer-turns',
+    label: 'TURNS',
+    subtitle: 'Multiplayer',
+    description: 'Up to 4 players taking turns',
+    hint: 'Gracze wybierają piłkarzy kolejno — każdy po cichu dobiera swój zestaw kart i zatwierdza strzał. Po każdej rundzie wyniki są rozstrzygane wspólnie.\n\nMożesz strzelać dalej lub kliknąć STOP, żeby zablokować swój wynik i czekać na koniec. Bust (zejście poniżej zera lub rzut >180) eliminuje Cię z gry.\n\nWygrywa ten, kto jest najbliżej zera.',
+    color: '#b91c1c',
+  },
+  {
+    mode: 'multiplayer-blitz',
+    label: 'BLITZ',
+    subtitle: 'Sudden Death',
+    description: 'All players play simultaneously — no mercy!',
+    hint: 'Każdy gracz wybiera piłkarzy po cichu — karty są zakryte i nikt nie widzi wyboru rywala. Podaj urządzenie kolejnemu graczowi.\n\nGdy wszyscy skończą, naciśnij "Shoot!" — wszystkie karty odsłaniają się jednocześnie. Wyniki są rozstrzygane natychmiast.\n\nBust (poniżej zera lub suma >180) eliminuje gracza. Wygrywa ten z wynikiem najbliższym zera.',
+    color: '#92400e',
+  },
 ];
 const SCORES: StartingScore[] = [301, 501, 701];
 const stickerShadowActive = (color: string) => `0 4px 20px ${color}44, 0 1px 4px rgba(0,0,0,0.16), 0 0 0 3px ${color}`;
@@ -71,10 +86,16 @@ export const GameSetup = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [allowMisses, setAllowMisses] = useState(false);
+  const [timer, setTimer] = useState<30 | 60 | 90 | 180 | 300 | null>(null);
+  const [hintMode, setHintMode] = useState<GameMode | null>(null);
 
   useEffect(() => {
     fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
   }, []);
+
+  useEffect(() => {
+    setTimer(null);
+  }, [mode]);
 
   const handleRandomClub = async () => {
     const club = await getRandomClubAsync();
@@ -138,45 +159,110 @@ export const GameSetup = ({
 
           {/* Mode cards — multiplayer only */}
           {mode !== 'solo' && (
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {MULTIPLAYER_MODES.map(({ mode: m, label, subtitle, description, number, color }, i) => {
-                const isSelected = mode === m;
-                return (
-                  <motion.button
-                    key={m}
-                    onClick={() => onModeSelect(m)}
-                    className="text-left"
-                    style={{
-                      background: 'white', borderRadius: '5px',
-                      boxShadow: isSelected ? stickerShadowActive(color) : stickerShadow,
-                      transform: isSelected ? 'translateY(-3px)' : 'none',
-                      transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-                      overflow: 'hidden', position: 'relative', cursor: 'pointer', border: 'none',
-                    }}
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.98 }}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 + i * 0.07 }}
-                  >
-                    <div style={{ background: color, padding: '10px 14px 8px', position: 'relative' }}>
-                      <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.65rem', color: 'white', lineHeight: 1, letterSpacing: '0.04em' }}>{label}</div>
-                      <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.65rem', color: 'rgba(255,255,255,0.68)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>{subtitle}</div>
-                      <div style={{ position: 'absolute', top: 8, right: 10, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '0.05em' }}>#{number}</div>
-                    </div>
-                    <div style={{ padding: '10px 14px 14px' }}>
-                      <p style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', color: '#4a3f2e', lineHeight: 1.45 }}>{description}</p>
-                      {isSelected && (
-                        <motion.div style={{ marginTop: '8px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                          ✓ SELECTED
-                        </motion.div>
-                      )}
-                    </div>
-                    {isSelected && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
-                  </motion.button>
-                );
-              })}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {MULTIPLAYER_MODES.map(({ mode: m, label, subtitle, description, hint, color }, i) => {
+                  const isSelected = mode === m;
+                  return (
+                    <motion.button
+                      key={m}
+                      onClick={() => onModeSelect(m)}
+                      className="text-left"
+                      style={{
+                        background: 'white', borderRadius: '5px',
+                        boxShadow: isSelected ? stickerShadowActive(color) : stickerShadow,
+                        transform: isSelected ? 'translateY(-3px)' : 'none',
+                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                        overflow: 'hidden', position: 'relative', cursor: 'pointer', border: 'none',
+                      }}
+                      whileHover={{ y: -3 }}
+                      whileTap={{ scale: 0.98 }}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 + i * 0.07 }}
+                    >
+                      <div style={{ background: color, padding: '10px 14px 8px', position: 'relative' }}>
+                        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.65rem', color: 'white', lineHeight: 1, letterSpacing: '0.04em' }}>{label}</div>
+                        <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.65rem', color: 'rgba(255,255,255,0.68)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>{subtitle}</div>
+                        {/* ? hint button */}
+                        <button
+                          onClick={e => { e.stopPropagation(); setHintMode(m); }}
+                          style={{
+                            position: 'absolute', top: 7, right: 8,
+                            background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.35)',
+                            borderRadius: '50%', width: 22, height: 22,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', color: 'white', padding: 0,
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.35)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+                          title="Jak działa ten tryb?"
+                        >
+                          <HelpCircle size={13} />
+                        </button>
+                      </div>
+                      <div style={{ padding: '10px 14px 14px' }}>
+                        <p style={{ fontFamily: 'Barlow, sans-serif', fontSize: '0.82rem', color: '#4a3f2e', lineHeight: 1.45 }}>{description}</p>
+                        {isSelected && (
+                          <motion.div style={{ marginTop: '8px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                            ✓ SELECTED
+                          </motion.div>
+                        )}
+                      </div>
+                      {isSelected && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+                    </motion.button>
+                  );
+                })}
+              </div>
+
+              {/* Mode hint overlay */}
+              <AnimatePresence>
+                {hintMode && (() => {
+                  const modeData = MULTIPLAYER_MODES.find(m => m.mode === hintMode)!;
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+                      onClick={() => setHintMode(null)}
+                    >
+                      <motion.div
+                        initial={{ scale: 0.9, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 16 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                        onClick={e => e.stopPropagation()}
+                        style={{ background: '#ede3ce', backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 47px, rgba(165,138,90,0.18) 47px, rgba(165,138,90,0.18) 48px)', borderRadius: 10, overflow: 'hidden', maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}
+                      >
+                        {/* Coloured header strip */}
+                        <div style={{ background: modeData.color, padding: '16px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.8rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1 }}>{modeData.label}</div>
+                            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.16em', textTransform: 'uppercase' }}>{modeData.subtitle}</div>
+                          </div>
+                          <button onClick={() => setHintMode(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}>
+                            <X size={16} />
+                          </button>
+                        </div>
+                        {/* Body */}
+                        <div style={{ padding: '20px 22px 24px' }}>
+                          {modeData.hint.split('\n\n').map((para, idx) => (
+                            <p key={idx} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 500, fontSize: '0.95rem', color: '#3a2e1e', lineHeight: 1.55, marginBottom: idx < modeData.hint.split('\n\n').length - 1 ? 12 : 0 }}>
+                              {para}
+                            </p>
+                          ))}
+                          <motion.button
+                            onClick={() => { onModeSelect(hintMode); setHintMode(null); }}
+                            style={{ width: '100%', marginTop: 20, background: modeData.color, color: 'white', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.15rem', letterSpacing: '0.18em', padding: '11px 0', borderRadius: 5, border: 'none', cursor: 'pointer', boxShadow: `0 4px 16px ${modeData.color}55` }}
+                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                          >
+                            Wybierz {modeData.label}
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })()}
+              </AnimatePresence>
+            </>
           )}
 
           {/* Starting points */}
@@ -208,6 +294,46 @@ export const GameSetup = ({
               })}
             </div>
           </div>
+
+          {/* Turn Timer — for multiplayer modes */}
+          {mode !== 'solo' && (
+            <div className="mb-6">
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                Turn Timer
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(mode === 'multiplayer-blitz'
+                  ? [null, 60, 180, 300] as const
+                  : [null, 30, 60, 90] as const
+                ).map((val) => (
+                  <motion.button
+                    key={String(val)}
+                    onClick={() => setTimer(val as typeof timer)}
+                    style={{
+                      flex: 1, padding: '9px 0', borderRadius: '5px',
+                      background: timer === val ? '#1e3a8a' : 'white',
+                      color: timer === val ? 'white' : '#1e3a8a',
+                      fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                      boxShadow: timer === val ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                      border: `2px solid ${timer === val ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                      cursor: 'pointer', transition: 'all 0.18s',
+                    }}
+                    whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                  >
+                    {val === null ? 'OFF' : val < 120 ? `${val}s` : `${val / 60} min`}
+                  </motion.button>
+                ))}
+              </div>
+              {timer !== null && (
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+                  {mode === 'multiplayer-blitz'
+                    ? 'Timeout = picks are locked in automatically.'
+                    : allowMisses ? 'Timeout = lose 1 life.' : 'Timeout = eliminated.'}{' '}
+                  {mode !== 'multiplayer-blitz' && 'Player is skipped for the round.'}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Allow Misses toggle — only for Turns mode */}
           {mode !== 'multiplayer-blitz' && <div className="mb-6">
@@ -371,7 +497,7 @@ export const GameSetup = ({
           {selectedClub && (
             hidePlayerNames ? (
               <motion.button
-                onClick={() => onStart([], allowMisses)}
+                onClick={() => onStart([], allowMisses, timer)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 style={{
@@ -766,7 +892,7 @@ export const GameSetup = ({
             transition={{ delay: 0.16 }}
           >
             <motion.button
-              onClick={() => onStart(activePlayerNames, allowMisses)}
+              onClick={() => onStart(activePlayerNames, allowMisses, timer)}
               disabled={!canProceed}
               style={{
                 display: 'flex',
