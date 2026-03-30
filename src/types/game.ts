@@ -65,7 +65,7 @@ export interface GameState {
   sessionId: string | null;
   myPlayerIndex: number | null;
   allowMisses: boolean;
-  timer: 30 | 60 | 90 | null;
+  timer: 30 | 60 | 90 | 180 | 300 | null;
 }
 
 export interface PlayerSearchResult {

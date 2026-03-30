@@ -8,7 +8,7 @@ import { useAllPlayers } from '@/hooks/useAllPlayers';
 import { searchPlayer } from '@/data/mockData';
 import { CardBack } from './BlitzGameBoard';
 
-const PLAYER_COLORS = ['#1e3a8a', '#b91c1c', '#15803d', '#92400e'];
+const PLAYER_COLORS = ['#1e3a8a', '#b91c1c', '#15803d', '#6a35c5'];
 
 const BG: React.CSSProperties = {
   backgroundColor: '#ede3ce',
@@ -209,8 +209,12 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     // Determine end-of-game conditions
     const anyZero = results.some(r => r.hitZero);
     const remainingActive = players.map((_, i) => !newElim[i] && !currentStopped[i]).filter(Boolean).length;
+    // Someone voluntarily stopped (not eliminated) — last active player may keep going
+    const hasVoluntaryStopped = currentStopped.some((s, i) => s && !newElim[i]);
+    // Game ends if: hit zero, no active left, or only 1 active but no one stopped (all others eliminated)
+    const gameOver = anyZero || remainingActive === 0 || (remainingActive === 1 && !hasVoluntaryStopped);
 
-    if (anyZero || remainingActive === 0) {
+    if (gameOver) {
       setWinnerIdxs(findWinners(newScores, newElim));
       setPhase('game-over');
     } else {
@@ -315,6 +319,12 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
   const handleNextRound = () => {
     const active = players.map((_, i) => i).filter(i => !eliminated[i] && !stopped[i]);
     if (active.length === 0) {
+      setWinnerIdxs(findWinners(scores, eliminated));
+      setPhase('game-over');
+      return;
+    }
+    const hasVoluntaryStopped = stopped.some((s, i) => s && !eliminated[i]);
+    if (active.length === 1 && !hasVoluntaryStopped) {
       setWinnerIdxs(findWinners(scores, eliminated));
       setPhase('game-over');
       return;
@@ -623,7 +633,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             Round {roundNum} Results
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, justifyContent: 'center', marginBottom: 28 }}>
             {roundResults.map(({ pIdx, apps, elim, stopped: wasStopped, hitZero, reason }) => (
               <motion.div
                 key={pIdx}
@@ -632,43 +642,43 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 transition={{ delay: pIdx * 0.08 }}
                 style={{
                   background: elim ? '#b91c1c' : wasStopped ? '#92400e' : hitZero ? '#15803d' : 'white',
-                  borderRadius: 6,
-                  padding: '16px 20px',
+                  borderRadius: 8,
+                  padding: '22px 28px',
                   textAlign: 'center',
                   boxShadow: elim
                     ? '0 0 0 3px #b91c1c, 0 0 28px rgba(185,28,28,0.5)'
                     : hitZero
                     ? '0 0 0 3px #15803d, 0 0 28px rgba(21,128,61,0.5)'
                     : '0 2px 10px rgba(0,0,0,0.1)',
-                  minWidth: 110,
+                  minWidth: 140,
                   borderTop: elim || wasStopped || hitZero ? 'none' : `4px solid ${PLAYER_COLORS[pIdx] ?? '#1e3a8a'}`,
                 }}
               >
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.85rem', color: elim || wasStopped || hitZero ? 'rgba(255,255,255,0.8)' : PLAYER_COLORS[pIdx], letterSpacing: '0.06em', marginBottom: 6 }}>
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: elim || wasStopped || hitZero ? 'rgba(255,255,255,0.8)' : PLAYER_COLORS[pIdx], letterSpacing: '0.06em', marginBottom: 8 }}>
                   {players[pIdx].name}
                 </div>
                 {wasStopped ? (
                   <>
-                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.8rem', color: 'white', lineHeight: 1 }}>{scores[pIdx]}</div>
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>Stopped</div>
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.4rem', color: 'white', lineHeight: 1 }}>{scores[pIdx]}</div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.68rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4 }}>Stopped</div>
                   </>
                 ) : elim ? (
                   <>
-                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', lineHeight: 1, letterSpacing: '0.08em' }}>OUT!</div>
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.6rem', color: 'white', lineHeight: 1, letterSpacing: '0.08em' }}>OUT!</div>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.68rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4 }}>
                       {reason === 'over180' ? 'over 180' : reason === 'miss' ? (allowMisses ? 'no lives left' : 'miss!') : reason === 'timeout' ? 'timeout' : 'below zero'}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.68rem', color: hitZero ? 'rgba(255,255,255,0.7)' : '#8a7553', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>
+                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.78rem', color: hitZero ? 'rgba(255,255,255,0.7)' : '#8a7553', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
                       -{apps} apps
                     </div>
-                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.2rem', color: hitZero ? 'white' : PLAYER_COLORS[pIdx], lineHeight: 1 }}>
+                    <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.8rem', color: hitZero ? 'white' : PLAYER_COLORS[pIdx], lineHeight: 1 }}>
                       {hitZero ? '0 ★' : scores[pIdx]}
                     </div>
                     {allowMisses && !hitZero && (
-                      <div style={{ fontSize: '0.72rem', marginTop: 3 }}>
+                      <div style={{ fontSize: '0.85rem', marginTop: 4 }}>
                         {Array.from({ length: 3 }).map((_, i) => (
                           <span key={i} style={{ color: i < lives[pIdx] ? '#b91c1c' : '#d4c4a0' }}>♥</span>
                         ))}
@@ -687,15 +697,15 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 animate={{ opacity: 1, y: 0 }}
                 style={{
                   background: '#7a6340',
-                  borderRadius: 6, padding: '16px 20px', textAlign: 'center',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: 110,
+                  borderRadius: 8, padding: '22px 28px', textAlign: 'center',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: 140,
                 }}
               >
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.06em', marginBottom: 6 }}>
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: 'rgba(255,255,255,0.8)', letterSpacing: '0.06em', marginBottom: 8 }}>
                   {players[pIdx].name}
                 </div>
-                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.8rem', color: 'white', lineHeight: 1 }}>{scores[pIdx]}</div>
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>Waiting</div>
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.4rem', color: 'white', lineHeight: 1 }}>{scores[pIdx]}</div>
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 4 }}>Waiting</div>
               </motion.div>
             ))}
           </div>
@@ -728,23 +738,32 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     const isDraw = winnerIdxs.length > 1;
     const isWinner = (i: number) => winnerIdxs.includes(i);
 
-    // Sort players: winners first, then by score (non-eliminated), busted last
-    const sortedPlayers = players
+    // Non-winners: sorted by score asc, busted at end
+    const nonWinners = players
       .map((p, i) => ({ p, i }))
+      .filter(({ i }) => !isWinner(i))
       .sort((a, b) => {
-        const aWin = isWinner(a.i), bWin = isWinner(b.i);
-        if (aWin && !bWin) return -1;
-        if (!aWin && bWin) return 1;
         const aBust = eliminated[a.i], bBust = eliminated[b.i];
         if (!aBust && bBust) return -1;
         if (aBust && !bBust) return 1;
         return scores[a.i] - scores[b.i];
       });
 
+    // Winner tile background — split by player colors for draw
+    const winnerBg = (() => {
+      if (winnerIdxs.length === 1) return PLAYER_COLORS[winnerIdxs[0]];
+      if (winnerIdxs.length === 2)
+        return `linear-gradient(90deg, ${PLAYER_COLORS[winnerIdxs[0]]} 50%, ${PLAYER_COLORS[winnerIdxs[1]]} 50%)`;
+      const pct = 100 / winnerIdxs.length;
+      return `linear-gradient(90deg, ${winnerIdxs.map((wi, k) => `${PLAYER_COLORS[wi]} ${k * pct}% ${(k + 1) * pct}%`).join(', ')})`;
+    })();
+    const winnerScore = winnerIdxs.length > 0 ? scores[winnerIdxs[0]] : null;
+    const winnerColor = winnerIdxs.length === 1 ? PLAYER_COLORS[winnerIdxs[0]] : '#5a4a35';
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6" style={BG}>
         {historyOverlay}
-      {rulesOverlay}
+        {rulesOverlay}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -756,44 +775,81 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             {winnerIdxs.length === 0 ? '— No Winner —' : isDraw ? '★ Draw ★' : '★ Winner ★'}
           </div>
 
-          {/* All players */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 28 }}>
-            {sortedPlayers.map(({ p, i }) => {
-              const win = isWinner(i);
-              const bust = eliminated[i];
-              const stop = stopped[i];
-              const color = win ? PLAYER_COLORS[i] : bust ? '#b91c1c' : stop ? '#7a6340' : '#5a4a35';
-              return (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                  animate={{ opacity: 1, scale: win ? 1.05 : 1, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 180, damping: 14, delay: 0.05 * i }}
-                  style={{
-                    background: color,
-                    borderRadius: 8, padding: '24px 32px', textAlign: 'center',
-                    boxShadow: win
-                      ? `0 8px 40px ${color}55, 0 0 0 4px white, 0 0 0 7px ${color}`
-                      : '0 4px 16px rgba(0,0,0,0.15)',
-                    position: 'relative', overflow: 'hidden', minWidth: 120,
-                  }}
-                >
-                  {win && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
-                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.25em', marginBottom: 4 }}>
-                    {win ? (isDraw ? 'DRAW' : 'WINNER') : bust ? 'BUST' : stop ? 'STOPPED' : ''}
-                  </div>
-                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1 }}>
-                    {p.name}
-                  </div>
-                  {!bust && (
-                    <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)', marginTop: 6 }}>
-                      {scores[i]} pts
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
+          {/* Winner tile */}
+          {winnerIdxs.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 180, damping: 14 }}
+              style={{
+                background: winnerBg,
+                borderRadius: 8, padding: '28px 40px', textAlign: 'center',
+                boxShadow: `0 8px 40px ${winnerColor}55, 0 0 0 4px white, 0 0 0 7px ${winnerColor}`,
+                position: 'relative', overflow: 'hidden', marginBottom: 24,
+              }}
+            >
+              <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.25em', marginBottom: 6 }}>
+                {isDraw ? 'DRAW' : 'WINNER'}
+              </div>
+              {isDraw ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  {winnerIdxs.map((wi) => (
+                    <span key={wi} style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1.1 }}>
+                      {players[wi].name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1 }}>
+                  {players[winnerIdxs[0]].name}
+                </div>
+              )}
+              {winnerScore !== null && (
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.9rem', color: 'rgba(255,255,255,0.75)', marginTop: 8 }}>
+                  {winnerScore} pts
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Other players — simple list */}
+          {nonWinners.length > 0 && (
+            <div style={{ width: '100%', maxWidth: 320, marginBottom: 28, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {nonWinners.map(({ p, i }, rank) => {
+                const bust = eliminated[i];
+                return (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 + rank * 0.06 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(0,0,0,0.07)' }}
+                  >
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: PLAYER_COLORS[i], flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: '#3a2e1e', letterSpacing: '0.04em', flex: 1 }}>
+                      {p.name}
+                    </span>
+                    {bust ? (
+                      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.72rem', color: '#b91c1c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                        BUST
+                      </span>
+                    ) : (
+                      <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.9rem', color: '#5a4a35' }}>
+                        {scores[i]} pts
+                      </span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {winnerIdxs.length === 0 && (
+            <div style={{ marginBottom: 28, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.9rem', color: '#8a7553' }}>
+              Wszyscy odpadli.
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 12 }}>
             <motion.button
@@ -854,7 +910,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         className="flex flex-col items-center"
       >
         {/* ── Player strip ── */}
-        <div style={{ width: '100%', maxWidth: 420, marginBottom: 20 }}>
+        <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: curColor, borderRadius: 6, padding: '8px 16px' }}>
             <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
               {curPlayer.name}
@@ -870,7 +926,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         </div>
 
         {/* ── Score circle + Timer circle ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 16 }}>
           <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
             <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="10" />
@@ -910,53 +966,6 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
           )}
         </div>
 
-        {/* ── Draft cards — horizontal scroll ── */}
-        <div style={{ width: '100%', maxWidth: 420, marginBottom: 14, minHeight: 140 }}>
-          {curDraft.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140, border: '2px dashed rgba(0,0,0,0.1)', borderRadius: 8 }}>
-              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                no players selected
-              </span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, paddingLeft: 4, paddingRight: 4, scrollbarWidth: 'none' }}>
-              {curDraft.map((fp, i) => (
-                <motion.div
-                  key={fp.id + i}
-                  style={{ flexShrink: 0 }}
-                  initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
-                  animate={{ opacity: 1, scale: 1, rotate: i % 2 === 0 ? -1.5 : 1.5 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                >
-                  <CardBack
-                    playerName={curPlayer.name}
-                    color={fp.isMiss ? '#b91c1c' : curColor}
-                    cardIndex={i}
-                    footballPlayerName={fp.name}
-                    onRemove={() => handleRemove(i)}
-                  />
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Used players (compact one-liner) ── */}
-        {allThrows[curIdx].length > 0 && (
-          <div style={{ width: '100%', maxWidth: 420, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: '#a09070', letterSpacing: '0.16em', textTransform: 'uppercase', flexShrink: 0 }}>
-              Użyci:
-            </span>
-            <div style={{ display: 'flex', gap: 4, overflow: 'hidden', flexWrap: 'nowrap' }}>
-              {allThrows[curIdx].flat().map(t => (
-                <span key={t.playerId} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: curColor, background: `${curColor}14`, border: `1px solid ${curColor}30`, borderRadius: 3, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap', textDecoration: 'line-through', textDecorationColor: `${curColor}60`, flexShrink: 0 }}>
-                  {t.playerName}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Search ── */}
         <div style={{ width: '100%', maxWidth: 420, marginBottom: 8 }}>
           <PlayerInput
@@ -975,7 +984,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
           {error && (
             <motion.div
               initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              style={{ width: '100%', maxWidth: 420, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.82rem', color: '#b91c1c', letterSpacing: '0.06em', marginBottom: 10, padding: '6px 14px', background: '#fef2f2', border: '1.5px solid #b91c1c', borderRadius: 4 }}
+              style={{ width: '100%', maxWidth: 420, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.82rem', color: '#b91c1c', letterSpacing: '0.06em', marginBottom: 8, padding: '6px 14px', background: '#fef2f2', border: '1.5px solid #b91c1c', borderRadius: 4 }}
             >
               {error}
             </motion.div>
@@ -983,7 +992,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         </AnimatePresence>
 
         {/* ── Actions ── */}
-        <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8 }}>
+        <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, marginBottom: 16 }}>
           {/* Confirm choice — main action */}
           <motion.button
             onClick={handleLockIn}
@@ -1014,11 +1023,11 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 key="stop-idle"
                 onClick={() => setStopConfirming(true)}
                 style={{
-                  width: 84, flexShrink: 0,
+                  width: 96, flexShrink: 0,
                   background: 'white', borderRadius: 6,
                   border: '2px solid #d4c4a0', cursor: 'pointer',
-                  padding: '8px 4px', display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 4,
+                  padding: '10px 4px', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 5,
                   boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
                 }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1035,7 +1044,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 key="stop-confirm"
                 initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
                 style={{
-                  width: 84, flexShrink: 0, background: '#fff8f0',
+                  width: 96, flexShrink: 0, background: '#fff8f0',
                   borderRadius: 6, border: '2px solid #92400e',
                   padding: '6px 5px', display: 'flex', flexDirection: 'column',
                   alignItems: 'center', gap: 4,
@@ -1060,6 +1069,53 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             )}
           </AnimatePresence>
         </div>
+
+        {/* ── Draft cards — wrap ── */}
+        <div style={{ width: '100%', maxWidth: 420, minHeight: 140 }}>
+          {curDraft.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 140, border: '2px dashed rgba(0,0,0,0.1)', borderRadius: 8 }}>
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                pick your players
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {curDraft.map((fp, i) => (
+                <motion.div
+                  key={fp.id + i}
+                  style={{ flexShrink: 0, position: 'relative' }}
+                  initial={{ opacity: 0, scale: 0.5, rotate: -8 }}
+                  animate={{ opacity: 1, scale: 1, rotate: i % 2 === 0 ? -1.5 : 1.5 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                  <CardBack
+                    playerName={curPlayer.name}
+                    color={curColor}
+                    cardIndex={i}
+                    footballPlayerName={fp.name}
+                    onRemove={() => handleRemove(i)}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Used players (compact one-liner) ── */}
+        {allThrows[curIdx].length > 0 && (
+          <div style={{ width: '100%', maxWidth: 420, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: '#a09070', letterSpacing: '0.16em', textTransform: 'uppercase', flexShrink: 0 }}>
+              Użyci:
+            </span>
+            <div style={{ display: 'flex', gap: 4, overflow: 'hidden', flexWrap: 'nowrap' }}>
+              {allThrows[curIdx].flat().map(t => (
+                <span key={t.playerId} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: curColor, background: `${curColor}14`, border: `1px solid ${curColor}30`, borderRadius: 3, padding: '2px 6px', letterSpacing: '0.02em', whiteSpace: 'nowrap', textDecoration: 'line-through', textDecorationColor: `${curColor}60`, flexShrink: 0 }}>
+                  {t.playerName}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );

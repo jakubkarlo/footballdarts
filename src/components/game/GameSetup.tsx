@@ -15,7 +15,7 @@ interface GameSetupProps {
   onModeSelect?: (mode: GameMode) => void;
   onScoreSelect?: (score: StartingScore) => void;
   onClubSelect: (club: Club) => void;
-  onStart: (playerNames: string[], allowMisses?: boolean, timer?: 30 | 60 | 90 | null) => void;
+  onStart: (playerNames: string[], allowMisses?: boolean, timer?: 30 | 60 | 90 | 180 | 300 | null) => void;
   onBack: () => void;
   hidePlayerNames?: boolean;
 }
@@ -86,12 +86,16 @@ export const GameSetup = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [allowMisses, setAllowMisses] = useState(false);
-  const [timer, setTimer] = useState<30 | 60 | 90 | null>(null);
+  const [timer, setTimer] = useState<30 | 60 | 90 | 180 | 300 | null>(null);
   const [hintMode, setHintMode] = useState<GameMode | null>(null);
 
   useEffect(() => {
     fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
   }, []);
+
+  useEffect(() => {
+    setTimer(null);
+  }, [mode]);
 
   const handleRandomClub = async () => {
     const club = await getRandomClubAsync();
@@ -298,10 +302,13 @@ export const GameSetup = ({
                 Turn Timer
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                {([null, 30, 60, 90] as const).map((val) => (
+                {(mode === 'multiplayer-blitz'
+                  ? [null, 60, 180, 300] as const
+                  : [null, 30, 60, 90] as const
+                ).map((val) => (
                   <motion.button
                     key={String(val)}
-                    onClick={() => setTimer(val)}
+                    onClick={() => setTimer(val as typeof timer)}
                     style={{
                       flex: 1, padding: '9px 0', borderRadius: '5px',
                       background: timer === val ? '#1e3a8a' : 'white',
@@ -313,13 +320,16 @@ export const GameSetup = ({
                     }}
                     whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
                   >
-                    {val === null ? 'OFF' : `${val}s`}
+                    {val === null ? 'OFF' : val < 120 ? `${val}s` : `${val / 60} min`}
                   </motion.button>
                 ))}
               </div>
               {timer !== null && (
                 <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
-                  {allowMisses ? `Timeout = lose 1 life.` : `Timeout = eliminated.`} Player is skipped for the round.
+                  {mode === 'multiplayer-blitz'
+                    ? 'Timeout = picks are locked in automatically.'
+                    : allowMisses ? 'Timeout = lose 1 life.' : 'Timeout = eliminated.'}{' '}
+                  {mode !== 'multiplayer-blitz' && 'Player is skipped for the round.'}
                 </div>
               )}
             </div>

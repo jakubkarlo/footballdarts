@@ -61,7 +61,7 @@ export const useGame = () => {
     setGameState((prev) => ({ ...prev, club }));
   }, []);
 
-  const startGame = useCallback((playerNames: string[], allowMisses = false, timer: 30 | 60 | 90 | null = null) => {
+  const startGame = useCallback((playerNames: string[], allowMisses = false, timer: 30 | 60 | 90 | 180 | 300 | null = null) => {
     const players = playerNames.map((name, index) =>
       createPlayer(`player-${index}`, name, gameState.startingScore)
     );
