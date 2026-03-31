@@ -88,6 +88,9 @@ export interface OnlineGameSession {
   currentPlayerIndex: number;
   maxPlayers: number;
   players: OnlinePlayer[];
+  roundNumber: number;
+  allowMisses: boolean;
+  timer: 30 | 60 | 90 | 180 | 300 | null;
 }
 
 export interface OnlinePlayer {
@@ -100,4 +103,14 @@ export interface OnlinePlayer {
   isFinished: boolean;
   sessionToken: string;
   throws: Throw[];
+  lives: number;
+}
+
+export interface OnlineDraftEntry {
+  id: string;
+  name: string;
+  appearances: number;
+  photo?: string;
+  position?: string;
+  isMiss?: boolean;
 }

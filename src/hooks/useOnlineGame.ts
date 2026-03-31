@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { GameMode, StartingScore, Club, OnlineGameSession, OnlinePlayer, Throw } from '@/types/game';
+import { GameMode, StartingScore, Club, OnlineGameSession, OnlinePlayer, OnlineDraftEntry, Throw } from '@/types/game';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 const generateCode = () => {
@@ -18,6 +18,7 @@ export const useOnlineGame = () => {
   const [mySessionToken, setMySessionToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [continueRoundSignal, setContinueRoundSignal] = useState(0);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const fetchSessionData = useCallback(async (sessionId: string) => {
@@ -72,6 +73,7 @@ export const useOnlineGame = () => {
           isFinished: player.is_finished,
           sessionToken: player.session_token,
           throws,
+          lives: player.lives ?? 3,
         };
       })
     );
@@ -98,6 +100,9 @@ export const useOnlineGame = () => {
       currentPlayerIndex: sessionData.current_player_index,
       maxPlayers: sessionData.max_players,
       players: playersWithThrows,
+      roundNumber: sessionData.round_number ?? 1,
+      allowMisses: sessionData.allow_misses ?? false,
+      timer: (sessionData.timer as 30 | 60 | 90 | 180 | 300 | null) ?? null,
     };
 
     setSession(gameSession);
@@ -126,6 +131,7 @@ export const useOnlineGame = () => {
         { event: '*', schema: 'public', table: 'game_throws', filter: `session_id=eq.${sessionId}` },
         () => fetchSessionData(sessionId)
       )
+      .on('broadcast', { event: 'continue_round' }, () => setContinueRoundSignal(prev => prev + 1))
       .subscribe();
 
     channelRef.current = channel;
@@ -135,7 +141,9 @@ export const useOnlineGame = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string
+    playerName: string,
+    allowMisses: boolean = false,
+    timer: 30 | 60 | 90 | 180 | 300 | null = null,
   ): Promise<{ code: string; sessionId: string } | null> => {
     setIsLoading(true);
     setError(null);
@@ -154,6 +162,8 @@ export const useOnlineGame = () => {
           starting_score: startingScore,
           max_players: maxPlayers,
           status: 'waiting',
+          allow_misses: allowMisses,
+          timer: timer,
         } as any)
         .select()
         .single();
@@ -347,6 +357,191 @@ export const useOnlineGame = () => {
     }
   }, [session, myPlayerId]);
 
+  // ── Round-based gameplay ────────────────────────────────────────────────────
+
+  const lockInDraft = useCallback(async (
+    draftEntries: OnlineDraftEntry[]
+  ): Promise<{ isEliminated: boolean; isFinished: boolean; newScore: number; newLives: number } | null> => {
+    if (!session || !myPlayerId) return null;
+
+    const myPlayer = session.players.find(p => p.id === myPlayerId);
+    if (!myPlayer) return null;
+
+    setIsLoading(true);
+    setError(null);
+
+    const roundNum = session.roundNumber ?? 1;
+    const allowMisses = session.allowMisses ?? false;
+
+    try {
+      // 1. Insert throws
+      for (const entry of draftEntries) {
+        await supabase.from('game_throws').insert({
+          session_id: session.id,
+          player_id: myPlayerId,
+          football_player_id: entry.id,
+          football_player_name: entry.name,
+          appearances: entry.appearances,
+          photo: entry.photo || null,
+          round_number: roundNum,
+          is_miss: entry.isMiss || false,
+        });
+      }
+
+      // 2. Compute result
+      const hasMiss = draftEntries.some(e => e.isMiss);
+      const total = hasMiss ? 0 : draftEntries.reduce((s, e) => s + e.appearances, 0);
+      const currentLives = myPlayer.lives ?? 3;
+
+      let newScore = myPlayer.score;
+      let newLives = currentLives;
+      let isElim = false;
+      let isFinished = false;
+
+      if (hasMiss) {
+        if (allowMisses) {
+          newLives = Math.max(0, currentLives - 1);
+          isElim = newLives <= 0;
+        } else {
+          isElim = true;
+          newLives = 0;
+        }
+      } else if (total > 180) {
+        isElim = true;
+        newLives = 0;
+      } else if (myPlayer.score - total < 0) {
+        isElim = true;
+        newLives = 0;
+      } else {
+        newScore = myPlayer.score - total;
+        isFinished = newScore === 0;
+      }
+
+      // 3. Update my player state
+      await supabase.from('game_players').update({
+        score: newScore,
+        lives: newLives,
+        is_busted: isElim,
+        is_finished: isFinished,
+      }).eq('id', myPlayerId);
+
+      // 4. Advance turn
+      const updatedPlayers = session.players.map(p =>
+        p.id === myPlayerId ? { ...p, score: newScore, lives: newLives, isBusted: isElim, isFinished } : p
+      );
+      const activePlayers = updatedPlayers
+        .filter(p => !p.isBusted && !p.isFinished)
+        .sort((a, b) => a.playerOrder - b.playerOrder);
+
+      const myOrder = myPlayer.playerOrder;
+      const nextInRound = activePlayers.find(p => p.playerOrder > myOrder);
+      const isLastInRound = !nextInRound;
+
+      // Check all players — someone earlier in the round may have already hit zero
+      const anyoneHitZero = updatedPlayers.some(p => p.score === 0 && p.isFinished && !p.isBusted);
+      const noActivePlayers = activePlayers.length === 0;
+      // Someone who voluntarily stopped (not busted, score > 0) — last active player can keep going
+      const hasVoluntaryStopped = updatedPlayers.some(p => p.isFinished && !p.isBusted && p.score > 0);
+      // Mirrors local game: game ends when hit zero, no active players, OR
+      // exactly 1 active left with nobody having voluntarily stopped (all others eliminated)
+      const gameOver = isLastInRound && (anyoneHitZero || noActivePlayers || (activePlayers.length === 1 && !hasVoluntaryStopped));
+
+      if (gameOver) {
+        await supabase.from('game_sessions')
+          .update({ status: 'finished' })
+          .eq('id', session.id);
+      } else if (isLastInRound) {
+        const firstActive = activePlayers[0];
+        await supabase.from('game_sessions').update({
+          current_player_index: firstActive?.playerOrder ?? 0,
+          round_number: roundNum + 1,
+        }).eq('id', session.id);
+      } else {
+        await supabase.from('game_sessions')
+          .update({ current_player_index: nextInRound.playerOrder })
+          .eq('id', session.id);
+      }
+
+      setIsLoading(false);
+      return { isEliminated: isElim, isFinished, newScore, newLives };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error locking in draft');
+      setIsLoading(false);
+      return null;
+    }
+  }, [session, myPlayerId]);
+
+  const stopOnline = useCallback(async () => {
+    if (!session || !myPlayerId) return;
+
+    const myPlayer = session.players.find(p => p.id === myPlayerId);
+    if (!myPlayer) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await supabase.from('game_players')
+        .update({ is_finished: true })
+        .eq('id', myPlayerId);
+
+      const updatedPlayers = session.players.map(p =>
+        p.id === myPlayerId ? { ...p, isFinished: true } : p
+      );
+
+      // All non-busted players stopped → game over
+      const allStopped = updatedPlayers
+        .filter(p => !p.isBusted)
+        .every(p => p.isFinished);
+
+      if (allStopped) {
+        await supabase.from('game_sessions')
+          .update({ status: 'finished' })
+          .eq('id', session.id);
+        return;
+      }
+
+      // Advance turn — skip busted and stopped players
+      const activePlayers = updatedPlayers
+        .filter(p => !p.isBusted && !p.isFinished)
+        .sort((a, b) => a.playerOrder - b.playerOrder);
+
+      const myOrder = myPlayer.playerOrder;
+      const nextInRound = activePlayers.find(p => p.playerOrder > myOrder);
+      const isLastInRound = !nextInRound;
+      const roundNum = session.roundNumber ?? 1;
+
+      if (isLastInRound) {
+        await supabase.from('game_sessions').update({
+          current_player_index: activePlayers[0]?.playerOrder ?? 0,
+          round_number: roundNum + 1,
+        }).eq('id', session.id);
+      } else {
+        await supabase.from('game_sessions')
+          .update({ current_player_index: nextInRound.playerOrder })
+          .eq('id', session.id);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, myPlayerId]);
+
+  const finishOnlineGame = useCallback(async () => {
+    if (!session) return;
+    await supabase
+      .from('game_sessions')
+      .update({ status: 'finished' })
+      .eq('id', session.id);
+  }, [session]);
+
+  const continueRound = useCallback(() => {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'continue_round',
+      payload: {},
+    });
+  }, []);
+
   const leaveGame = useCallback(async () => {
     if (channelRef.current) {
       channelRef.current.unsubscribe();
@@ -374,7 +569,8 @@ export const useOnlineGame = () => {
     };
   }, []);
 
-  const isMyTurn = session?.players.findIndex(p => p.id === myPlayerId) === session?.currentPlayerIndex;
+  const myPlayerOrder = session?.players.find(p => p.id === myPlayerId)?.playerOrder ?? null;
+  const isMyTurn = myPlayerOrder !== null && session?.currentPlayerIndex === myPlayerOrder && session?.status === 'playing';
   const myPlayerIndex = session?.players.findIndex(p => p.id === myPlayerId) ?? null;
 
   return {
@@ -382,9 +578,11 @@ export const useOnlineGame = () => {
     myPlayerId,
     mySessionToken,
     myPlayerIndex,
+    myPlayerOrder,
     isMyTurn,
     isLoading,
     error,
+    continueRoundSignal,
     createGame,
     joinGame,
     setClub,
@@ -392,6 +590,10 @@ export const useOnlineGame = () => {
     makeOnlineThrow,
     endOnlineTurn,
     finishOnlinePlayer,
+    lockInDraft,
+    stopOnline,
+    finishOnlineGame,
+    continueRound,
     leaveGame,
   };
 };

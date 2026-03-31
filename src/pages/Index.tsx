@@ -10,6 +10,7 @@ import { BlitzGameBoard } from '@/components/game/BlitzGameBoard';
 import { BlitzResult } from '@/components/game/BlitzResult';
 import { TurnsGameBoard } from '@/components/game/TurnsGameBoard';
 import { OnlineLobby } from '@/components/game/OnlineLobby';
+import { OnlineTurnsGameBoard } from '@/components/game/OnlineTurnsGameBoard';
 import { CreateOnlineScreen } from '@/components/game/CreateOnlineScreen';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -37,9 +38,11 @@ const Index = () => {
     session: onlineSession,
     myPlayerId,
     myPlayerIndex,
+    myPlayerOrder,
     isMyTurn,
     isLoading: isOnlineLoading,
     error: onlineError,
+    continueRoundSignal,
     createGame,
     joinGame,
     setClub: setOnlineClub,
@@ -47,6 +50,10 @@ const Index = () => {
     makeOnlineThrow,
     endOnlineTurn,
     finishOnlinePlayer,
+    lockInDraft,
+    stopOnline,
+    finishOnlineGame,
+    continueRound,
     leaveGame,
   } = useOnlineGame();
 
@@ -74,9 +81,11 @@ const Index = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string
+    playerName: string,
+    allowMisses: boolean,
+    timer: 30 | 60 | 90 | 180 | 300 | null,
   ) => {
-    const result = await createGame(mode, startingScore, maxPlayers, playerName);
+    const result = await createGame(mode, startingScore, maxPlayers, playerName, allowMisses, timer);
     if (result) {
       setShowCreateOnline(false);
     }
@@ -118,8 +127,47 @@ const Index = () => {
     );
   }
 
-  // TODO: Handle online game playing state
-  // For now, online games will use a similar flow
+  // Online game in progress
+  if (isOnlineMode && onlineSession.status === 'playing') {
+    return (
+      <div className="relative min-h-screen overflow-hidden">
+        <OnlineTurnsGameBoard
+          session={onlineSession}
+          myPlayerId={myPlayerId}
+          myPlayerOrder={myPlayerOrder}
+          isMyTurn={isMyTurn}
+          isLoading={isOnlineLoading}
+          error={onlineError}
+          continueRoundSignal={continueRoundSignal}
+          onLockIn={lockInDraft}
+          onStop={stopOnline}
+          onContinueRound={continueRound}
+          onLeave={handleLeaveOnline}
+        />
+      </div>
+    );
+  }
+
+  // Online game finished (redirect to lobby cleanup)
+  if (isOnlineMode && onlineSession.status === 'finished') {
+    return (
+      <div className="relative min-h-screen overflow-hidden">
+        <OnlineTurnsGameBoard
+          session={onlineSession}
+          myPlayerId={myPlayerId}
+          myPlayerOrder={myPlayerOrder}
+          isMyTurn={false}
+          isLoading={false}
+          error={null}
+          continueRoundSignal={continueRoundSignal}
+          onLockIn={lockInDraft}
+          onStop={stopOnline}
+          onContinueRound={continueRound}
+          onLeave={handleLeaveOnline}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
