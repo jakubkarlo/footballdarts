@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Club, GameMode, StartingScore } from '@/types/game';
@@ -27,13 +27,6 @@ const getInitialPlayerNames = (mode: GameMode): string[] => {
 
 const stickerShadow = '0 2px 6px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.07)';
 
-const LEAGUES: { country: string; flag: string; leagues: { value: string; label: string }[] }[] = [
-  { country: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', leagues: [{ value: 'England', label: 'Premier League' }] },
-  { country: 'Spain',   flag: '🇪🇸',        leagues: [{ value: 'Spain',   label: 'La Liga'       }] },
-  { country: 'Germany', flag: '🇩🇪',        leagues: [{ value: 'Germany', label: 'Bundesliga'    }] },
-  { country: 'Italy',   flag: '🇮🇹',        leagues: [{ value: 'Italy',   label: 'Serie A'       }] },
-  { country: 'France',  flag: '🇫🇷',        leagues: [{ value: 'France',  label: 'Ligue 1'       }] },
-];
 
 const CARD_PALETTES = [
   { from: '#1e3a8a', via: '#2563eb', accent: '#93c5fd' },
@@ -82,7 +75,8 @@ export const GameSetup = ({
   const [playerCount, setPlayerCount] = useState(2);
   const [step, setStep] = useState<'config' | 'club' | 'players'>(hidePlayerNames ? 'club' : 'config');
   const [clubs, setClubs] = useState<Club[]>(mockClubs);
-  const [leagueFilter, setLeagueFilter] = useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = useState('');
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [allowMisses, setAllowMisses] = useState(false);
@@ -93,13 +87,18 @@ export const GameSetup = ({
     fetchClubs().then(setClubs).catch(() => setClubs(mockClubs));
   }, []);
 
+  const availableCountries = useMemo(
+    () => [...new Set(clubs.map(c => c.country).filter(Boolean))].sort() as string[],
+    [clubs]
+  );
+
   useEffect(() => {
     setTimer(null);
   }, [mode]);
 
   const handleRandomClub = async () => {
     const club = await getRandomClubAsync();
-    setLeagueFilter(null);
+    setCountryFilter('');
     setSearchQuery('');
     onClubSelect(club);
   };
@@ -622,44 +621,112 @@ export const GameSetup = ({
                   </button>
                 </div>
 
-                {/* League filter dropdown */}
-                <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(165,138,90,0.2)' }}>
-                  <select
-                    value={leagueFilter ?? ''}
-                    onChange={(e) => setLeagueFilter(e.target.value || null)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '5px',
-                      border: '2px solid rgba(30,58,138,0.18)',
-                      background: 'white',
-                      fontFamily: 'Barlow Condensed, sans-serif',
-                      fontWeight: 600,
-                      fontSize: '0.88rem',
-                      letterSpacing: '0.04em',
-                      color: leagueFilter ? '#1e3a8a' : '#8a7553',
-                      boxShadow: stickerShadow,
-                      outline: 'none',
-                      cursor: 'pointer',
-                      appearance: 'auto',
-                    }}
-                  >
-                    <option value="">All leagues</option>
-                    {LEAGUES.map(({ country, flag, leagues }) => (
-                      <optgroup key={country} label={`${flag} ${country}`}>
-                        {leagues.map(({ value, label }) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                {/* Country filter */}
+                <div style={{ padding: '10px 20px', borderBottom: '1px solid rgba(165,138,90,0.2)', position: 'relative', zIndex: 10 }}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      value={countryFilter}
+                      onChange={(e) => { setCountryFilter(e.target.value); setCountryDropdownOpen(true); }}
+                      onFocus={() => setCountryDropdownOpen(true)}
+                      onBlur={() => setTimeout(() => setCountryDropdownOpen(false), 150)}
+                      placeholder="All countries"
+                      style={{
+                        width: '100%',
+                        padding: '8px 32px 8px 12px',
+                        borderRadius: countryDropdownOpen ? '5px 5px 0 0' : '5px',
+                        border: '2px solid rgba(30,58,138,0.18)',
+                        borderBottom: countryDropdownOpen ? '2px solid rgba(30,58,138,0.08)' : '2px solid rgba(30,58,138,0.18)',
+                        background: 'white',
+                        fontFamily: 'Barlow Condensed, sans-serif',
+                        fontWeight: 600,
+                        fontSize: '0.88rem',
+                        letterSpacing: '0.04em',
+                        color: countryFilter ? '#1e3a8a' : '#8a7553',
+                        boxShadow: stickerShadow,
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        cursor: 'text',
+                      }}
+                    />
+                    {countryFilter ? (
+                      <button
+                        onMouseDown={(e) => { e.preventDefault(); setCountryFilter(''); setCountryDropdownOpen(false); }}
+                        style={{
+                          position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: '#8a7553', fontSize: '0.8rem', padding: '2px 4px', lineHeight: 1,
+                        }}
+                      >✕</button>
+                    ) : (
+                      <span style={{
+                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                        color: '#8a7553', fontSize: '0.7rem', pointerEvents: 'none',
+                      }}>▼</span>
+                    )}
+                    {countryDropdownOpen && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0,
+                        background: 'white',
+                        border: '2px solid rgba(30,58,138,0.18)',
+                        borderTop: 'none',
+                        borderRadius: '0 0 5px 5px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 20,
+                      }}>
+                        {!countryFilter && (
+                          <div
+                            onMouseDown={(e) => { e.preventDefault(); setCountryFilter(''); setCountryDropdownOpen(false); }}
+                            style={{
+                              padding: '8px 12px',
+                              fontFamily: 'Barlow Condensed, sans-serif',
+                              fontWeight: 600,
+                              fontSize: '0.88rem',
+                              letterSpacing: '0.04em',
+                              color: '#8a7553',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid rgba(165,138,90,0.15)',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(30,58,138,0.06)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            All countries
+                          </div>
+                        )}
+                        {availableCountries
+                          .filter(c => !countryFilter || c.toLowerCase().includes(countryFilter.toLowerCase()))
+                          .map(country => (
+                            <div
+                              key={country}
+                              onMouseDown={(e) => { e.preventDefault(); setCountryFilter(country); setCountryDropdownOpen(false); }}
+                              style={{
+                                padding: '8px 12px',
+                                fontFamily: 'Barlow Condensed, sans-serif',
+                                fontWeight: 600,
+                                fontSize: '0.88rem',
+                                letterSpacing: '0.04em',
+                                color: '#1e3a8a',
+                                cursor: 'pointer',
+                                background: countryFilter === country ? 'rgba(30,58,138,0.08)' : 'transparent',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(30,58,138,0.06)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = countryFilter === country ? 'rgba(30,58,138,0.08)' : 'transparent')}
+                            >
+                              {country}
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Club grid */}
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-4">
                     {clubs.map((club, i) => {
-                      if (leagueFilter && club.country !== leagueFilter) return null;
+                      if (countryFilter.trim() && !club.country?.toLowerCase().includes(countryFilter.trim().toLowerCase())) return null;
                       if (searchQuery.trim() && !club.name.toLowerCase().includes(searchQuery.toLowerCase())) return null;
                       const isSelected = selectedClub?.id === club.id;
                       const p = CARD_PALETTES[i % CARD_PALETTES.length];
