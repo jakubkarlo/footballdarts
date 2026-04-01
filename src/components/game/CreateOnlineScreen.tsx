@@ -11,7 +11,9 @@ interface CreateOnlineScreenProps {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string
+    playerName: string,
+    allowMisses: boolean,
+    timer: 30 | 60 | 90 | 180 | 300 | null,
   ) => Promise<void>;
 }
 
@@ -58,10 +60,12 @@ export const CreateOnlineScreen = ({
   const [selectedScore, setSelectedScore] = useState<StartingScore>(501);
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [playerName, setPlayerName] = useState('');
+  const [allowMisses, setAllowMisses] = useState(false);
+  const [timer, setTimer] = useState<30 | 60 | 90 | 180 | 300 | null>(null);
 
   const handleSubmit = async () => {
     if (!playerName.trim() || isLoading) return;
-    await onCreate(selectedMode, selectedScore, maxPlayers, playerName.trim());
+    await onCreate(selectedMode, selectedScore, maxPlayers, playerName.trim(), allowMisses, timer);
   };
 
   return (
@@ -378,12 +382,94 @@ export const CreateOnlineScreen = ({
             </div>
           </motion.div>
 
+          {/* Turn Timer — only for turns mode */}
+          {selectedMode === 'multiplayer-turns' && (
+            <motion.div
+              className="mb-5"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.37 }}
+            >
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+                Turn Timer
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([null, 30, 60, 90] as const).map((val) => {
+                  const active = timer === val;
+                  return (
+                    <motion.button
+                      key={String(val)}
+                      onClick={() => setTimer(val)}
+                      style={{
+                        flex: 1, padding: '9px 0', borderRadius: '5px',
+                        background: active ? '#1e3a8a' : 'white',
+                        color: active ? 'white' : '#1e3a8a',
+                        fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                        boxShadow: active ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                        border: `2px solid ${active ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                        cursor: 'pointer', transition: 'all 0.18s',
+                      }}
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                    >
+                      {val === null ? 'OFF' : `${val}s`}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              {timer !== null && (
+                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+                  {allowMisses ? 'Timeout = lose 1 life.' : 'Timeout = eliminated.'} Player is skipped for the round.
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Allow Misses — only for turns mode */}
+          {selectedMode === 'multiplayer-turns' && (
+            <motion.div
+              className="mb-5"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+                Allow Misses
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([false, true] as const).map((val) => {
+                  const active = allowMisses === val;
+                  return (
+                    <motion.button
+                      key={String(val)}
+                      onClick={() => setAllowMisses(val)}
+                      style={{
+                        flex: 1, padding: '9px 0', borderRadius: '5px',
+                        background: active ? '#1e3a8a' : 'white',
+                        color: active ? 'white' : '#1e3a8a',
+                        fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                        boxShadow: active ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                        border: `2px solid ${active ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                        cursor: 'pointer', transition: 'all 0.18s',
+                      }}
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                    >
+                      {val ? 'ON — 3 lives' : 'OFF'}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+                {allowMisses ? 'Miss = lose 1 life (3 total). Lose all → eliminated.' : 'Miss = eliminated at end of turn.'}
+              </div>
+            </motion.div>
+          )}
+
           {/* Player name */}
           <motion.div
             className="mb-6"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.46 }}
           >
             <div
               style={{

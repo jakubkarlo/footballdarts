@@ -20,6 +20,7 @@ export type Database = {
           id: string
           is_busted: boolean
           is_finished: boolean
+          lives: number
           player_name: string
           player_order: number
           score: number
@@ -32,6 +33,7 @@ export type Database = {
           id?: string
           is_busted?: boolean
           is_finished?: boolean
+          lives?: number
           player_name: string
           player_order: number
           score: number
@@ -44,6 +46,7 @@ export type Database = {
           id?: string
           is_busted?: boolean
           is_finished?: boolean
+          lives?: number
           player_name?: string
           player_order?: number
           score?: number
@@ -63,6 +66,7 @@ export type Database = {
       }
       game_sessions: {
         Row: {
+          allow_misses: boolean
           club_country: string | null
           club_id: string | null
           club_logo: string | null
@@ -74,11 +78,14 @@ export type Database = {
           id: string
           max_players: number
           mode: Database["public"]["Enums"]["game_mode"]
+          round_number: number
           starting_score: number
           status: Database["public"]["Enums"]["game_status"]
+          timer: number | null
           updated_at: string
         }
         Insert: {
+          allow_misses?: boolean
           club_country?: string | null
           club_id?: string | null
           club_logo?: string | null
@@ -90,11 +97,14 @@ export type Database = {
           id?: string
           max_players?: number
           mode: Database["public"]["Enums"]["game_mode"]
+          round_number?: number
           starting_score?: number
           status?: Database["public"]["Enums"]["game_status"]
+          timer?: number | null
           updated_at?: string
         }
         Update: {
+          allow_misses?: boolean
           club_country?: string | null
           club_id?: string | null
           club_logo?: string | null
@@ -106,8 +116,10 @@ export type Database = {
           id?: string
           max_players?: number
           mode?: Database["public"]["Enums"]["game_mode"]
+          round_number?: number
           starting_score?: number
           status?: Database["public"]["Enums"]["game_status"]
+          timer?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -119,8 +131,10 @@ export type Database = {
           football_player_id: string
           football_player_name: string
           id: string
+          is_miss: boolean
           photo: string | null
           player_id: string
+          round_number: number
           session_id: string
         }
         Insert: {
@@ -129,8 +143,10 @@ export type Database = {
           football_player_id: string
           football_player_name: string
           id?: string
+          is_miss?: boolean
           photo?: string | null
           player_id: string
+          round_number?: number
           session_id: string
         }
         Update: {
@@ -139,8 +155,10 @@ export type Database = {
           football_player_id?: string
           football_player_name?: string
           id?: string
+          is_miss?: boolean
           photo?: string | null
           player_id?: string
+          round_number?: number
           session_id?: string
         }
         Relationships: [
