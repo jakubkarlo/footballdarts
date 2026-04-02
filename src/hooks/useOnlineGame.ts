@@ -143,7 +143,6 @@ export const useOnlineGame = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string,
     allowMisses: boolean = false,
     timer: 30 | 60 | 90 | 180 | 300 | null = null,
   ): Promise<{ code: string; sessionId: string } | null> => {
@@ -174,12 +173,12 @@ export const useOnlineGame = () => {
         throw new Error(sessionError?.message || 'Failed to create game');
       }
 
-      // Add host as first player
+      // Add host as first player with default name
       const { data: playerData, error: playerError } = await supabase
         .from('game_players')
         .insert({
           session_id: sessionData.id,
-          player_name: playerName,
+          player_name: 'Player 1',
           player_order: 0,
           score: startingScore,
         })
@@ -207,7 +206,6 @@ export const useOnlineGame = () => {
 
   const joinGame = useCallback(async (
     code: string,
-    playerName: string
   ): Promise<{ sessionId: string } | null> => {
     setIsLoading(true);
     setError(null);
@@ -237,13 +235,16 @@ export const useOnlineGame = () => {
         throw new Error('Game is full');
       }
 
+      const playerOrder = count || 0;
+      const defaultName = `Player ${playerOrder + 1}`;
+
       // Add player
       const { data: playerData, error: playerError } = await supabase
         .from('game_players')
         .insert({
           session_id: sessionData.id,
-          player_name: playerName,
-          player_order: count || 0,
+          player_name: defaultName,
+          player_order: playerOrder,
           score: sessionData.starting_score,
         })
         .select()
@@ -282,9 +283,20 @@ export const useOnlineGame = () => {
       .eq('id', session.id);
   }, [session]);
 
+  const setPlayerReady = useCallback(async (name: string) => {
+    if (!myPlayerId) return;
+    const finalName = name.trim() || `Player ${(session?.players.find(p => p.id === myPlayerId)?.playerOrder ?? 0) + 1}`;
+    await supabase.from('game_players')
+      .update({ player_name: finalName, is_finished: true })
+      .eq('id', myPlayerId);
+  }, [myPlayerId, session]);
+
   const startOnlineGame = useCallback(async () => {
     if (!session) return;
-
+    // Reset is_finished (was repurposed as lobby "ready") before starting
+    await supabase.from('game_players')
+      .update({ is_finished: false })
+      .eq('session_id', session.id);
     await supabase
       .from('game_sessions')
       .update({ status: 'playing' })
@@ -640,6 +652,7 @@ export const useOnlineGame = () => {
     createGame,
     joinGame,
     setClub,
+    setPlayerReady,
     startOnlineGame,
     makeOnlineThrow,
     endOnlineTurn,

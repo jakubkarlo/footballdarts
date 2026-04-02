@@ -47,6 +47,7 @@ const Index = () => {
     createGame,
     joinGame,
     setClub: setOnlineClub,
+    setPlayerReady,
     startOnlineGame,
     makeOnlineThrow,
     endOnlineTurn,
@@ -85,18 +86,17 @@ const Index = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string,
     allowMisses: boolean,
     timer: 30 | 60 | 90 | 180 | 300 | null,
   ) => {
-    const result = await createGame(mode, startingScore, maxPlayers, playerName, allowMisses, timer);
+    const result = await createGame(mode, startingScore, maxPlayers, allowMisses, timer);
     if (result) {
       setShowCreateOnline(false);
     }
   };
 
-  const handleJoinGame = async (code: string, playerName: string) => {
-    const result = await joinGame(code, playerName);
+  const handleJoinGame = async (code: string) => {
+    const result = await joinGame(code);
     if (result) {
       setShowJoinModal(false);
     }
@@ -123,6 +123,7 @@ const Index = () => {
             isLoading={isOnlineLoading}
             error={onlineError}
             onSetClub={setOnlineClub}
+            onSetReady={setPlayerReady}
             onStartGame={startOnlineGame}
             onLeave={handleLeaveOnline}
           />

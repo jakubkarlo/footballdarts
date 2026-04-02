@@ -877,24 +877,6 @@ export const OnlineTurnsGameBoard = ({
               </div>
             </div>
 
-            {/* Score circle + elapsed timer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 16 }}>
-              {/* My score ring */}
-              {myPlayer && !myPlayer.isBusted && !myPlayer.isFinished && (
-                <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
-                  <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
-                    <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="10" />
-                    <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke={myColor} strokeWidth="10"
-                      strokeDasharray={SCORE_C} strokeDashoffset={SCORE_C * (1 - scoreFraction)}
-                      strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
-                  </svg>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', color: myColor, lineHeight: 1 }}>{myScore}</span>
-                  </div>
-                </div>
-              )}
-
-            </div>
 
             {/* Face-down cards placeholder — hides how many cards opponent is picking */}
             <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>

@@ -11,7 +11,6 @@ interface CreateOnlineScreenProps {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string,
     allowMisses: boolean,
     timer: 30 | 60 | 90 | 180 | 300 | null,
   ) => Promise<void>;
@@ -62,7 +61,6 @@ export const CreateOnlineScreen = ({
   const [selectedMode, setSelectedMode] = useState<GameMode>('multiplayer-turns');
   const [selectedScore, setSelectedScore] = useState<StartingScore>(501);
   const [maxPlayers, setMaxPlayers] = useState(2);
-  const [playerName, setPlayerName] = useState('');
   const [allowMisses, setAllowMisses] = useState(false);
   const [timer, setTimer] = useState<30 | 60 | 90 | 180 | 300 | null>(null);
   const [hintMode, setHintMode] = useState<GameMode | null>(null);
@@ -74,8 +72,8 @@ export const CreateOnlineScreen = ({
   };
 
   const handleSubmit = async () => {
-    if (!playerName.trim() || isLoading) return;
-    await onCreate(selectedMode, selectedScore, maxPlayers, playerName.trim(), allowMisses, timer);
+    if (isLoading) return;
+    await onCreate(selectedMode, selectedScore, maxPlayers, allowMisses, timer);
   };
 
   return (
@@ -528,51 +526,6 @@ export const CreateOnlineScreen = ({
             </motion.div>
           )}
 
-          {/* Player name */}
-          <motion.div
-            className="mb-6"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.46 }}
-          >
-            <div
-              style={{
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 700,
-                fontSize: '0.63rem',
-                letterSpacing: '0.25em',
-                color: '#8a7553',
-                textTransform: 'uppercase',
-                marginBottom: '0.45rem',
-              }}
-            >
-              Your Name
-            </div>
-            <input
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="Enter your name…"
-              style={{
-                width: '100%',
-                padding: '11px 14px',
-                borderRadius: '5px',
-                border: '2px solid rgba(30,58,138,0.2)',
-                background: 'white',
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 600,
-                fontSize: '1rem',
-                letterSpacing: '0.05em',
-                color: '#1e3a8a',
-                outline: 'none',
-                boxShadow: stickerShadow,
-                boxSizing: 'border-box',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#1e3a8a')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(30,58,138,0.2)')}
-            />
-          </motion.div>
-
           {error && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -597,21 +550,19 @@ export const CreateOnlineScreen = ({
           {/* Create button */}
           <motion.button
             onClick={handleSubmit}
-            disabled={!playerName.trim() || isLoading}
+            disabled={isLoading}
             className="w-full"
             style={{
-              background: playerName.trim() ? '#1e3a8a' : 'rgba(30,58,138,0.35)',
+              background: '#1e3a8a',
               color: 'white',
               fontFamily: 'Bebas Neue, sans-serif',
               fontSize: '1.5rem',
               letterSpacing: '0.2em',
               padding: '14px 0',
               borderRadius: '6px',
-              boxShadow: playerName.trim()
-                ? '0 4px 18px rgba(30,58,138,0.4), 0 2px 4px rgba(0,0,0,0.18)'
-                : 'none',
+              boxShadow: '0 4px 18px rgba(30,58,138,0.4), 0 2px 4px rgba(0,0,0,0.18)',
               border: 'none',
-              cursor: playerName.trim() ? 'pointer' : 'not-allowed',
+              cursor: 'pointer',
               position: 'relative',
               overflow: 'hidden',
               transition: 'all 0.2s',
@@ -620,15 +571,13 @@ export const CreateOnlineScreen = ({
               justifyContent: 'center',
               gap: '10px',
             }}
-            whileHover={playerName.trim() ? { scale: 1.03 } : {}}
-            whileTap={playerName.trim() ? { scale: 0.97 } : {}}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.46 }}
           >
-            {playerName.trim() && (
-              <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
-            )}
+            <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
             {isLoading ? (
               <Loader2 size={22} className="animate-spin" />
             ) : (
