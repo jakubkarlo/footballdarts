@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
+import { motion, AnimatePresence } from 'framer-motion';
 import { OnlineGameSession, Club } from '@/types/game';
-import { Users, Copy, Check, ArrowLeft, Play, Loader2, Wifi } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { ClubBadge } from './ClubBadge';
+import { ArrowLeft, Copy, Check, Play, Loader2, Wifi, Zap } from 'lucide-react';
 import { GameSetup } from './GameSetup';
+import { PLAYER_COLORS, BG, OUTLINE_BTN } from './TurnsShared';
+
+const stickerShadow = '0 2px 6px rgba(0,0,0,0.13), 0 0 0 1px rgba(0,0,0,0.07)';
 
 interface OnlineLobbyProps {
   session: OnlineGameSession;
@@ -14,6 +14,7 @@ interface OnlineLobbyProps {
   isLoading: boolean;
   error: string | null;
   onSetClub: (club: Club) => void;
+  onSetReady: (name: string) => Promise<void>;
   onStartGame: () => void;
   onLeave: () => void;
 }
@@ -25,11 +26,20 @@ export const OnlineLobby = ({
   isLoading,
   error,
   onSetClub,
+  onSetReady,
   onStartGame,
   onLeave,
 }: OnlineLobbyProps) => {
   const [copied, setCopied] = useState(false);
   const [phase, setPhase] = useState<'waiting' | 'club'>('waiting');
+  const [myName, setMyName] = useState('');
+  const [isSettingReady, setIsSettingReady] = useState(false);
+
+  const myPlayer = session.players.find(p => p.id === myPlayerId);
+  const amReady = myPlayer?.isFinished ?? false;
+  const allReady = session.players.length >= 2 && session.players.every(p => p.isFinished);
+  const modeLabel = session.mode === 'multiplayer-blitz' ? 'BLITZ' : 'TURNS';
+  const modeColor = session.mode === 'multiplayer-blitz' ? '#92400e' : '#b91c1c';
 
   const copyCode = () => {
     navigator.clipboard.writeText(session.code);
@@ -37,17 +47,20 @@ export const OnlineLobby = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const enoughPlayers = session.players.length >= 2;
+  const handleReady = async () => {
+    setIsSettingReady(true);
+    const defaultName = `Player ${(myPlayer?.playerOrder ?? 0) + 1}`;
+    await onSetReady(myName.trim() || defaultName);
+    setIsSettingReady(false);
+  };
 
-  // Host: club selection step
+  // Host: club selection
   if (phase === 'club' && isHost) {
     return (
       <GameSetup
         mode={session.mode}
         selectedClub={session.club}
-        onClubSelect={(club) => {
-          onSetClub(club);
-        }}
+        onClubSelect={onSetClub}
         onStart={onStartGame}
         onBack={() => setPhase('waiting')}
         hidePlayerNames
@@ -55,186 +68,227 @@ export const OnlineLobby = ({
     );
   }
 
-  // Non-host waiting for club selection
-  if (phase === 'club' && !isHost) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
-        <motion.div
-          className="w-full max-w-md text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <h2 className="text-2xl font-display font-bold mb-2">Get Ready</h2>
-          <p className="text-muted-foreground">Host is selecting the club…</p>
-          {session.club && (
-            <motion.div
-              className="flex justify-center mt-6"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <ClubBadge club={session.club} size="lg" />
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Waiting lobby
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-stadium-gradient">
-      <motion.div
-        className="w-full max-w-lg"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Button
-            variant="ghost"
-            onClick={onLeave}
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Leave
-          </Button>
-          <div className="flex items-center gap-2 text-primary">
-            <Wifi className="w-5 h-5" />
-            <span className="font-medium">Online Game</span>
-          </div>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={BG}>
+      <div style={{ width: '100%', maxWidth: 480 }}>
 
-        {/* Game Code */}
-        <motion.div
-          className="text-center mb-8"
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
+        {/* Back button */}
+        <motion.button
+          onClick={onLeave}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7553', padding: 0, marginBottom: 20 }}
+          whileHover={{ color: '#4a3f2e' }}
+          whileTap={{ scale: 0.97 }}
         >
-          <p className="text-sm text-muted-foreground mb-2">Game Code</p>
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-5xl font-display font-bold tracking-[0.3em] text-primary">
+          <ArrowLeft size={15} />
+          Wyjdź
+        </motion.button>
+
+        {/* Title + code */}
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: 24 }}
+        >
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#1e3a8a', borderRadius: 20, padding: '4px 14px', marginBottom: 10 }}>
+            <Wifi size={11} style={{ color: 'white' }} />
+            <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.2em', color: 'white', textTransform: 'uppercase' }}>Online Lobby</span>
+          </div>
+
+          {/* Game code */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 4 }}>
+            <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 'clamp(2.8rem, 10vw, 4.2rem)', color: '#1e3a8a', lineHeight: 1 }}>
               {session.code}
             </span>
-            <Button
-              variant="outline"
-              size="icon"
+            <motion.button
               onClick={copyCode}
-              className="rounded-xl"
+              style={{ ...OUTLINE_BTN, padding: '8px 10px', color: copied ? '#15803d' : '#7a6340', borderColor: copied ? '#15803d' : '#d4c4a0' }}
+              whileHover={{ y: -1 }} whileTap={{ scale: 0.94 }}
             >
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-            </Button>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+            </motion.button>
           </div>
-          <p className="text-sm text-muted-foreground mt-2">
-            Share this code with friends to join
-          </p>
+          <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.72rem', color: '#a09070', letterSpacing: '0.1em' }}>
+            Podaj kod znajomym
+          </div>
         </motion.div>
 
-        {/* Mode & Score */}
-        <div className="flex justify-center gap-4 mb-6">
-          <span className="px-4 py-2 bg-card/80 rounded-xl text-sm border border-border/50">
-            {session.mode === 'multiplayer-turns' ? 'Turns Mode' : 'Blitz Mode'}
-          </span>
-          <span className="px-4 py-2 bg-card/80 rounded-xl text-sm border border-border/50">
-            {session.startingScore} pts
-          </span>
-          <span className="px-4 py-2 bg-card/80 rounded-xl text-sm border border-border/50">
-            Max {session.maxPlayers} players
-          </span>
-        </div>
+        {/* Mode / score chips */}
+        <motion.div
+          style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          {[
+            { label: modeLabel, color: modeColor, icon: session.mode === 'multiplayer-blitz' ? <Zap size={11} /> : null },
+            { label: `${session.startingScore} pts`, color: '#1e3a8a', icon: null },
+            { label: `max ${session.maxPlayers}`, color: '#1e3a8a', icon: null },
+          ].map(chip => (
+            <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 4, padding: '4px 10px', boxShadow: stickerShadow, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: chip.color }}>
+              {chip.icon}
+              {chip.label}
+            </div>
+          ))}
+        </motion.div>
 
-        {/* Players */}
-        <div className="bg-card/90 backdrop-blur-sm rounded-2xl border border-border/50 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-primary" />
-            <h3 className="font-display font-bold">
-              Players ({session.players.length}/{session.maxPlayers})
-            </h3>
+        {/* Players list */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          style={{ background: 'white', borderRadius: 8, boxShadow: stickerShadow, overflow: 'hidden', marginBottom: 16 }}
+        >
+          <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid #f0e8d8', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase' }}>
+            Gracze ({session.players.length}/{session.maxPlayers})
           </div>
 
-          <div className="space-y-3">
-            {session.players.map((player, index) => (
+          {session.players.map((player, idx) => {
+            const isMe = player.id === myPlayerId;
+            const color = PLAYER_COLORS[idx] ?? '#1e3a8a';
+            const ready = player.isFinished;
+            return (
               <motion.div
                 key={player.id}
-                className={cn(
-                  'flex items-center justify-between p-4 rounded-xl border',
-                  player.id === myPlayerId
-                    ? 'bg-primary/10 border-primary/30'
-                    : 'bg-muted/30 border-border/30'
-                )}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: idx * 0.06 }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: idx < session.players.length - 1 ? '1px solid #f5f0e8' : 'none', background: isMe ? `${color}08` : 'transparent' }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">
-                    {index + 1}
-                  </div>
-                  <span className="font-medium">
-                    {player.playerName}
-                    {player.id === myPlayerId && (
-                      <span className="text-xs text-primary ml-2">(You)</span>
-                    )}
-                    {index === 0 && (
-                      <span className="text-xs text-secondary ml-2">(Host)</span>
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-secondary">
-                  <Wifi className="w-4 h-4" />
-                  <span className="text-xs">Connected</span>
-                </div>
-              </motion.div>
-            ))}
+                {/* Color dot */}
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: ready ? '#15803d' : color, flexShrink: 0, transition: 'background 0.3s' }} />
 
-            {/* Empty slots */}
-            {Array.from({ length: session.maxPlayers - session.players.length }).map((_, index) => (
-              <div
-                key={`empty-${index}`}
-                className="flex items-center justify-center p-4 rounded-xl border border-dashed border-border/30 text-muted-foreground"
-              >
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Waiting for player…
-              </div>
-            ))}
-          </div>
-        </div>
+                {/* Name */}
+                <div style={{ flex: 1, fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.05rem', color, letterSpacing: '0.04em' }}>
+                  {player.playerName}
+                  {idx === 0 && <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: '#8a7553', letterSpacing: '0.1em', textTransform: 'uppercase', marginLeft: 8 }}>Host</span>}
+                  {isMe && <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: color, opacity: 0.7, letterSpacing: '0.1em', textTransform: 'uppercase', marginLeft: 6 }}>Ty</span>}
+                </div>
+
+                {/* Ready badge */}
+                <AnimatePresence mode="wait">
+                  {ready ? (
+                    <motion.div
+                      key="ready"
+                      initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                      style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#15803d', background: 'rgba(21,128,61,0.1)', borderRadius: 4, padding: '3px 8px' }}
+                    >
+                      ✓ Gotowy
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="waiting"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.65rem', letterSpacing: '0.08em', color: '#a09070' }}
+                    >
+                      wybiera…
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+
+          {/* Empty slots */}
+          {Array.from({ length: session.maxPlayers - session.players.length }).map((_, i) => (
+            <div key={`empty-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderTop: '1px solid #f5f0e8' }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#d4c4a0', flexShrink: 0 }} />
+              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.8rem', color: '#c4b49a', letterSpacing: '0.06em' }}>Czeka na gracza…</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* My name input + READY — only if not yet ready */}
+        {!amReady && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            style={{ background: 'white', borderRadius: 8, padding: '16px', boxShadow: stickerShadow, marginBottom: 16 }}
+          >
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.45rem' }}>
+              Twoje imię
+            </div>
+            <input
+              value={myName}
+              onChange={e => setMyName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !amReady && handleReady()}
+              placeholder={`Player ${(myPlayer?.playerOrder ?? 0) + 1}`}
+              maxLength={24}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 5, border: '2px solid rgba(30,58,138,0.2)', background: '#fafaf8', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '1rem', letterSpacing: '0.05em', color: '#1e3a8a', outline: 'none', boxSizing: 'border-box', marginBottom: 12 }}
+              onFocus={e => (e.target.style.borderColor = '#1e3a8a')}
+              onBlur={e => (e.target.style.borderColor = 'rgba(30,58,138,0.2)')}
+            />
+            <motion.button
+              onClick={handleReady}
+              disabled={isSettingReady}
+              style={{ width: '100%', background: '#15803d', color: 'white', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.3rem', letterSpacing: '0.18em', padding: '12px 0', borderRadius: 5, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(21,128,61,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
+            >
+              {isSettingReady
+                ? <Loader2 size={18} className="animate-spin" />
+                : '✓ Jestem gotowy'}
+            </motion.button>
+          </motion.div>
+        )}
 
         {error && (
-          <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm text-center">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            style={{ marginBottom: 12, padding: '8px 14px', borderRadius: 5, background: 'rgba(185,28,28,0.08)', border: '1.5px solid rgba(185,28,28,0.3)', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.82rem', color: '#b91c1c', textAlign: 'center' }}
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
-        {/* Action */}
-        {isHost ? (
-          <>
-            <Button
+        {/* Host action */}
+        {isHost && amReady && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <motion.button
               onClick={() => setPhase('club')}
-              disabled={!enoughPlayers || isLoading}
-              className="w-full h-14 text-lg font-display font-bold bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:from-secondary/90 hover:to-secondary/70 rounded-xl"
+              disabled={!allReady || isLoading}
+              style={{
+                width: '100%',
+                background: allReady ? '#1e3a8a' : 'rgba(30,58,138,0.35)',
+                color: 'white',
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '1.5rem',
+                letterSpacing: '0.2em',
+                padding: '14px 0',
+                borderRadius: 6,
+                border: 'none',
+                cursor: allReady ? 'pointer' : 'not-allowed',
+                boxShadow: allReady ? '0 4px 18px rgba(30,58,138,0.4)' : 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                position: 'relative', overflow: 'hidden',
+              }}
+              whileHover={allReady ? { scale: 1.02, y: -2 } : {}}
+              whileTap={allReady ? { scale: 0.97 } : {}}
             >
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Play className="w-5 h-5 mr-2" />
-                  Proceed
-                </>
-              )}
-            </Button>
-            {!enoughPlayers && (
-              <p className="text-center text-muted-foreground text-sm mt-4">
-                Need at least 2 players to proceed
-              </p>
+              {allReady && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+              {isLoading ? <Loader2 size={22} className="animate-spin" /> : <><Play size={18} /> Wybierz klub</>}
+            </motion.button>
+            {!allReady && (
+              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.08em' }}>
+                Czekaj aż wszyscy będą gotowi
+              </div>
             )}
-          </>
-        ) : (
-          <div className="text-center text-muted-foreground">
-            Waiting for host to start the game…
-          </div>
+          </motion.div>
         )}
-      </motion.div>
+
+        {/* Non-host waiting */}
+        {!isHost && amReady && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            style={{ textAlign: 'center', padding: '16px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.85rem', color: '#8a7553', letterSpacing: '0.08em' }}
+          >
+            Czekasz na hosta…
+          </motion.div>
+        )}
+
+      </div>
     </div>
   );
 };

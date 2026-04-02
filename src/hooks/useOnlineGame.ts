@@ -19,6 +19,7 @@ export const useOnlineGame = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [continueRoundSignal, setContinueRoundSignal] = useState(0);
+  const [revealSignal, setRevealSignal] = useState(0);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const fetchSessionData = useCallback(async (sessionId: string) => {
@@ -132,6 +133,7 @@ export const useOnlineGame = () => {
         () => fetchSessionData(sessionId)
       )
       .on('broadcast', { event: 'continue_round' }, () => setContinueRoundSignal(prev => prev + 1))
+      .on('broadcast', { event: 'blitz_shoot' }, () => setRevealSignal(prev => prev + 1))
       .subscribe();
 
     channelRef.current = channel;
@@ -141,7 +143,6 @@ export const useOnlineGame = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string,
     allowMisses: boolean = false,
     timer: 30 | 60 | 90 | 180 | 300 | null = null,
   ): Promise<{ code: string; sessionId: string } | null> => {
@@ -172,12 +173,12 @@ export const useOnlineGame = () => {
         throw new Error(sessionError?.message || 'Failed to create game');
       }
 
-      // Add host as first player
+      // Add host as first player with default name
       const { data: playerData, error: playerError } = await supabase
         .from('game_players')
         .insert({
           session_id: sessionData.id,
-          player_name: playerName,
+          player_name: 'Player 1',
           player_order: 0,
           score: startingScore,
         })
@@ -205,7 +206,6 @@ export const useOnlineGame = () => {
 
   const joinGame = useCallback(async (
     code: string,
-    playerName: string
   ): Promise<{ sessionId: string } | null> => {
     setIsLoading(true);
     setError(null);
@@ -235,13 +235,16 @@ export const useOnlineGame = () => {
         throw new Error('Game is full');
       }
 
+      const playerOrder = count || 0;
+      const defaultName = `Player ${playerOrder + 1}`;
+
       // Add player
       const { data: playerData, error: playerError } = await supabase
         .from('game_players')
         .insert({
           session_id: sessionData.id,
-          player_name: playerName,
-          player_order: count || 0,
+          player_name: defaultName,
+          player_order: playerOrder,
           score: sessionData.starting_score,
         })
         .select()
@@ -280,9 +283,20 @@ export const useOnlineGame = () => {
       .eq('id', session.id);
   }, [session]);
 
+  const setPlayerReady = useCallback(async (name: string) => {
+    if (!myPlayerId) return;
+    const finalName = name.trim() || `Player ${(session?.players.find(p => p.id === myPlayerId)?.playerOrder ?? 0) + 1}`;
+    await supabase.from('game_players')
+      .update({ player_name: finalName, is_finished: true })
+      .eq('id', myPlayerId);
+  }, [myPlayerId, session]);
+
   const startOnlineGame = useCallback(async () => {
     if (!session) return;
-
+    // Reset is_finished (was repurposed as lobby "ready") before starting
+    await supabase.from('game_players')
+      .update({ is_finished: false })
+      .eq('session_id', session.id);
     await supabase
       .from('game_sessions')
       .update({ status: 'playing' })
@@ -526,6 +540,47 @@ export const useOnlineGame = () => {
     }
   }, [session, myPlayerId]);
 
+  const lockInBlitzDraft = useCallback(async (draftEntries: OnlineDraftEntry[]) => {
+    if (!session || !myPlayerId) return;
+    const myPlayer = session.players.find(p => p.id === myPlayerId);
+    if (!myPlayer) return;
+
+    // Insert throws
+    for (const entry of draftEntries) {
+      await supabase.from('game_throws').insert({
+        session_id: session.id,
+        player_id: myPlayerId,
+        football_player_id: entry.id,
+        football_player_name: entry.name,
+        appearances: entry.appearances,
+        photo: entry.photo || null,
+        round_number: 1,
+        is_miss: false,
+      });
+    }
+
+    // Calculate result — bust if score drops below zero
+    const total = draftEntries.reduce((s, e) => s + e.appearances, 0);
+    const newScore = myPlayer.score - total;
+    const isBusted = newScore < 0;
+
+    await supabase.from('game_players').update({
+      score: newScore,
+      is_busted: isBusted,
+      is_finished: true,
+    }).eq('id', myPlayerId);
+
+    // If all other players are already done, finish the session
+    const allDone = session.players.every(p =>
+      p.id === myPlayerId || p.isFinished || p.isBusted
+    );
+    if (allDone) {
+      await supabase.from('game_sessions')
+        .update({ status: 'finished' })
+        .eq('id', session.id);
+    }
+  }, [session, myPlayerId]);
+
   const finishOnlineGame = useCallback(async () => {
     if (!session) return;
     await supabase
@@ -540,6 +595,16 @@ export const useOnlineGame = () => {
       event: 'continue_round',
       payload: {},
     });
+  }, []);
+
+  const triggerReveal = useCallback(() => {
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'blitz_shoot',
+      payload: {},
+    });
+    // Also trigger locally for the host
+    setRevealSignal(prev => prev + 1);
   }, []);
 
   const leaveGame = useCallback(async () => {
@@ -583,17 +648,21 @@ export const useOnlineGame = () => {
     isLoading,
     error,
     continueRoundSignal,
+    revealSignal,
     createGame,
     joinGame,
     setClub,
+    setPlayerReady,
     startOnlineGame,
     makeOnlineThrow,
     endOnlineTurn,
     finishOnlinePlayer,
     lockInDraft,
+    lockInBlitzDraft,
     stopOnline,
     finishOnlineGame,
     continueRound,
+    triggerReveal,
     leaveGame,
   };
 };

@@ -11,6 +11,7 @@ import { BlitzResult } from '@/components/game/BlitzResult';
 import { TurnsGameBoard } from '@/components/game/TurnsGameBoard';
 import { OnlineLobby } from '@/components/game/OnlineLobby';
 import { OnlineTurnsGameBoard } from '@/components/game/OnlineTurnsGameBoard';
+import { OnlineBlitzGameBoard } from '@/components/game/OnlineBlitzGameBoard';
 import { CreateOnlineScreen } from '@/components/game/CreateOnlineScreen';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -46,15 +47,19 @@ const Index = () => {
     createGame,
     joinGame,
     setClub: setOnlineClub,
+    setPlayerReady,
     startOnlineGame,
     makeOnlineThrow,
     endOnlineTurn,
     finishOnlinePlayer,
     lockInDraft,
+    lockInBlitzDraft,
     stopOnline,
     finishOnlineGame,
     continueRound,
+    triggerReveal,
     leaveGame,
+    revealSignal,
   } = useOnlineGame();
 
   const [showCreateOnline, setShowCreateOnline] = useState(false);
@@ -81,18 +86,17 @@ const Index = () => {
     mode: GameMode,
     startingScore: StartingScore,
     maxPlayers: number,
-    playerName: string,
     allowMisses: boolean,
     timer: 30 | 60 | 90 | 180 | 300 | null,
   ) => {
-    const result = await createGame(mode, startingScore, maxPlayers, playerName, allowMisses, timer);
+    const result = await createGame(mode, startingScore, maxPlayers, allowMisses, timer);
     if (result) {
       setShowCreateOnline(false);
     }
   };
 
-  const handleJoinGame = async (code: string, playerName: string) => {
-    const result = await joinGame(code, playerName);
+  const handleJoinGame = async (code: string) => {
+    const result = await joinGame(code);
     if (result) {
       setShowJoinModal(false);
     }
@@ -119,6 +123,7 @@ const Index = () => {
             isLoading={isOnlineLoading}
             error={onlineError}
             onSetClub={setOnlineClub}
+            onSetReady={setPlayerReady}
             onStartGame={startOnlineGame}
             onLeave={handleLeaveOnline}
           />
@@ -127,7 +132,26 @@ const Index = () => {
     );
   }
 
-  // Online game in progress
+  // Online blitz game in progress or finished
+  if (isOnlineMode && onlineSession.mode === 'multiplayer-blitz' && (onlineSession.status === 'playing' || onlineSession.status === 'finished')) {
+    return (
+      <div className="relative min-h-screen overflow-hidden">
+        <OnlineBlitzGameBoard
+          session={onlineSession}
+          myPlayerId={myPlayerId}
+          myPlayerOrder={myPlayerOrder}
+          revealSignal={revealSignal}
+          isLoading={isOnlineLoading}
+          error={onlineError}
+          onLockIn={lockInBlitzDraft}
+          onTriggerReveal={triggerReveal}
+          onLeave={handleLeaveOnline}
+        />
+      </div>
+    );
+  }
+
+  // Online turns game in progress
   if (isOnlineMode && onlineSession.status === 'playing') {
     return (
       <div className="relative min-h-screen overflow-hidden">
@@ -148,7 +172,7 @@ const Index = () => {
     );
   }
 
-  // Online game finished (redirect to lobby cleanup)
+  // Online turns game finished
   if (isOnlineMode && onlineSession.status === 'finished') {
     return (
       <div className="relative min-h-screen overflow-hidden">
