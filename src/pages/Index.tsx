@@ -11,6 +11,7 @@ import { BlitzResult } from '@/components/game/BlitzResult';
 import { TurnsGameBoard } from '@/components/game/TurnsGameBoard';
 import { OnlineLobby } from '@/components/game/OnlineLobby';
 import { OnlineTurnsGameBoard } from '@/components/game/OnlineTurnsGameBoard';
+import { OnlineBlitzGameBoard } from '@/components/game/OnlineBlitzGameBoard';
 import { CreateOnlineScreen } from '@/components/game/CreateOnlineScreen';
 import { JoinGameModal } from '@/components/game/JoinGameModal';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -51,10 +52,13 @@ const Index = () => {
     endOnlineTurn,
     finishOnlinePlayer,
     lockInDraft,
+    lockInBlitzDraft,
     stopOnline,
     finishOnlineGame,
     continueRound,
+    triggerReveal,
     leaveGame,
+    revealSignal,
   } = useOnlineGame();
 
   const [showCreateOnline, setShowCreateOnline] = useState(false);
@@ -127,7 +131,26 @@ const Index = () => {
     );
   }
 
-  // Online game in progress
+  // Online blitz game in progress or finished
+  if (isOnlineMode && onlineSession.mode === 'multiplayer-blitz' && (onlineSession.status === 'playing' || onlineSession.status === 'finished')) {
+    return (
+      <div className="relative min-h-screen overflow-hidden">
+        <OnlineBlitzGameBoard
+          session={onlineSession}
+          myPlayerId={myPlayerId}
+          myPlayerOrder={myPlayerOrder}
+          revealSignal={revealSignal}
+          isLoading={isOnlineLoading}
+          error={onlineError}
+          onLockIn={lockInBlitzDraft}
+          onTriggerReveal={triggerReveal}
+          onLeave={handleLeaveOnline}
+        />
+      </div>
+    );
+  }
+
+  // Online turns game in progress
   if (isOnlineMode && onlineSession.status === 'playing') {
     return (
       <div className="relative min-h-screen overflow-hidden">
@@ -148,7 +171,7 @@ const Index = () => {
     );
   }
 
-  // Online game finished (redirect to lobby cleanup)
+  // Online turns game finished
   if (isOnlineMode && onlineSession.status === 'finished') {
     return (
       <div className="relative min-h-screen overflow-hidden">
