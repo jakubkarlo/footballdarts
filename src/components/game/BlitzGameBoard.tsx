@@ -148,22 +148,8 @@ const FlipCard = ({
 }) => {
   const backColor = PLAYER_COLORS[card.gamePlayerIndex] ?? '#1e3a8a';
   const p = card.footballPlayer;
-
-  const posColor = () => {
-    const pos = p.position?.toLowerCase() ?? '';
-    if (pos.includes('goal')) return '#15803d';
-    if (pos.includes('def'))  return '#1e3a8a';
-    if (pos.includes('mid'))  return '#b45309';
-    return '#b91c1c';
-  };
-  const posAbbr = () => {
-    const pos = p.position?.toLowerCase() ?? '';
-    if (pos.includes('goal')) return 'GK';
-    if (pos.includes('def'))  return 'DF';
-    if (pos.includes('mid'))  return 'MF';
-    return 'FW';
-  };
   const surname = p.name.split(' ').slice(-1)[0] ?? p.name;
+  const isMiss = p.appearances === 0;
 
   return (
     <motion.div
@@ -182,7 +168,7 @@ const FlipCard = ({
           <CardBack playerName={playerName} color={backColor} cardIndex={cardIndex} />
         </div>
 
-        {/* FRONT — matches PlayerSticker design */}
+        {/* FRONT */}
         <div style={{
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
@@ -207,25 +193,28 @@ const FlipCard = ({
             </motion.div>
             {/* Photo area */}
             <div style={{ position: 'relative', flex: 1, background: '#1a120a', overflow: 'hidden' }}>
-              <img
-                src={p.photo || BBC_PHOTO}
-                alt={p.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onError={(e) => { e.currentTarget.src = BBC_PHOTO; }}
-              />
+              {!isMiss && (
+                <img
+                  src={p.photo || BBC_PHOTO}
+                  alt={p.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { e.currentTarget.src = BBC_PHOTO; }}
+                />
+              )}
+              {isMiss && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14 }}>
+                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '3.2rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>✕</div>
+                </div>
+              )}
               {/* bottom gradient */}
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 44, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }} />
-              {/* position badge */}
-              <div style={{ position: 'absolute', top: 5, left: 5, background: posColor(), borderRadius: 2, padding: '2px 5px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.52rem', color: 'white', letterSpacing: '0.08em', textTransform: 'uppercase', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
-                {posAbbr()}
-              </div>
               {/* surname */}
               <div style={{ position: 'absolute', bottom: 5, left: 5, right: 5, fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.82rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
                 {surname}
               </div>
-              <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+              {!isMiss && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
             </div>
-            {/* Stat footer — player colour */}
+            {/* Stat footer */}
             <div style={{ background: backColor, padding: '5px 6px', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 6px)', pointerEvents: 'none' }} />
               <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.65rem', color: 'white', lineHeight: 1, letterSpacing: '0.02em' }}>{p.appearances}</span>
@@ -254,6 +243,7 @@ export const BlitzGameBoard = ({
   );
   const [currentPickerIndex, setCurrentPickerIndex] = useState(0);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [showWinner, setShowWinner] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHandover, setShowHandover] = useState(false);
@@ -322,7 +312,14 @@ export const BlitzGameBoard = ({
     const fp = await searchPlayer(gameState.club.id, playerName, playerId);
 
     if (!fp) {
-      setError(`Not found: ${playerName}`);
+      const nameLower = playerName.toLowerCase();
+      if ((cards[currentPickerIndex] ?? []).some(c => c.footballPlayer.name.toLowerCase() === nameLower)) {
+        setError(`${playerName} already picked!`);
+        setIsLoading(false);
+        return;
+      }
+      const unknownPlayer: FootballPlayer = { id: `unknown-${playerName}-${Date.now()}`, name: playerName, appearances: 0, photo: '', position: '' };
+      setCards(prev => { const next = prev.map(arr => [...arr]); next[currentPickerIndex] = [...next[currentPickerIndex], { footballPlayer: unknownPlayer, gamePlayerIndex: currentPickerIndex }]; return next; });
       setIsLoading(false);
       return;
     }
@@ -374,6 +371,14 @@ export const BlitzGameBoard = ({
     setShowHandover(false);
     setCurrentPickerIndex(i => i + 1);
   };
+
+  useEffect(() => {
+    if (!isRevealed) return;
+    const maxCards = Math.max(...players.map((_, i) => cards[i]?.length ?? 0));
+    const delay = maxCards * 0.09 + 1.2;
+    const t = setTimeout(() => setShowWinner(true), delay * 1000);
+    return () => clearTimeout(t);
+  }, [isRevealed, cards, players]);
 
   // ── Shoot! ─────────────────────────────────────────────────────────────────
   const handleShoot = () => {
@@ -607,37 +612,48 @@ export const BlitzGameBoard = ({
           animate={{ opacity: 1, x: 0 }}
           className="flex flex-col items-center"
         >
-          {/* Player strip — full width, matches Turns style */}
-          <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: PLAYER_COLORS[currentPickerIndex],
-              borderRadius: 6,
-              padding: '8px 16px',
-            }}>
-              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
-                {currentPlayerName}
+          {/* Player strip */}
+          <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: PLAYER_COLORS[currentPickerIndex], borderRadius: 6, padding: '8px 16px' }}>
+              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.1em' }}>
+                PICK YOUR PLAYERS
               </span>
             </div>
           </div>
 
-          {/* Timer circle */}
-          {timerDuration && timeLeft !== null && (() => {
-            const frac = timeLeft / timerDuration;
-            const ringColor = frac > 0.4 ? '#15803d' : frac > 0.2 ? '#d97706' : '#b91c1c';
-            return (
-              <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
-                <div style={{ width: 64, height: 64, borderRadius: '50%', background: `conic-gradient(${ringColor} ${frac * 360}deg, rgba(0,0,0,0.08) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 10px rgba(0,0,0,0.15)' }}>
+          {/* Score ring + timer */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 14 }}>
+            {(() => {
+              const SCORE_R = 46, SCORE_C = 2 * Math.PI * SCORE_R;
+              const myColor = PLAYER_COLORS[currentPickerIndex];
+              return (
+                <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
+                  <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="10" />
+                    <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke={myColor} strokeWidth="10"
+                      strokeDasharray={SCORE_C} strokeDashoffset={0} strokeLinecap="round" />
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', color: myColor, lineHeight: 1 }}>
+                      {gameState.startingScore}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+            {timerDuration && timeLeft !== null && (() => {
+              const frac = timeLeft / timerDuration;
+              const ringColor = frac > 0.4 ? '#15803d' : frac > 0.2 ? '#d97706' : '#b91c1c';
+              return (
+                <div style={{ width: 64, height: 64, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${ringColor} ${frac * 360}deg, rgba(0,0,0,0.08) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 10px rgba(0,0,0,0.15)' }}>
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ede3ce', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                     <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.2rem', color: ringColor, lineHeight: 1 }}>{timeLeft}</span>
                     <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.42rem', color: ringColor, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.7 }}>sec</span>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
 
           {/* Search */}
           <div style={{ width: '100%', maxWidth: 420, marginBottom: 8 }}>
@@ -737,19 +753,15 @@ export const BlitzGameBoard = ({
         const winnerIdx = validScores.indexOf(minScore) === validScores.lastIndexOf(minScore) && minScore < Infinity
           ? validScores.indexOf(minScore) : -1;
 
-        // Delay after last card flips
-        const maxCards = Math.max(...players.map((_, i) => cards[i]?.length ?? 0));
-        const resultDelay = maxCards * 0.09 + 0.8;
-
         return (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
 
             {/* Winner banner — top */}
-            {isRevealed && (
+            {showWinner && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.7, y: -16 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ delay: resultDelay, type: 'spring', stiffness: 180, damping: 14 }}
+                transition={{ type: 'spring', stiffness: 180, damping: 14 }}
                 style={{
                   marginBottom: 16,
                   background: winnerIdx >= 0 ? PLAYER_COLORS[winnerIdx] : '#5a4a35',
@@ -820,7 +832,7 @@ export const BlitzGameBoard = ({
             {/* Player rows */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', marginBottom: 28 }}>
               {players.map((player, pIdx) => {
-                const isWinner = isRevealed && winnerIdx === pIdx;
+                const isWinner = showWinner && winnerIdx === pIdx;
                 const isBusted = isRevealed && busted[pIdx];
                 return (
                   <motion.div
@@ -836,7 +848,7 @@ export const BlitzGameBoard = ({
                       transition: 'border-color 0.3s, background 0.3s',
                     }}
                     animate={{ scale: isWinner ? 1.01 : 1 }}
-                    transition={{ delay: resultDelay + 0.1 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 18 }}
                   >
                     {/* Player header row: label + score */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -907,12 +919,12 @@ export const BlitzGameBoard = ({
             </div>
 
             {/* New game button */}
-            {isRevealed && (
+            {showWinner && (
               <motion.button
                 onClick={onReset}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: resultDelay + 0.5 }}
+                transition={{ delay: 0.4 }}
                 style={{
                   marginTop: 20,
                   background: 'white',
