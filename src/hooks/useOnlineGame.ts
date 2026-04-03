@@ -570,10 +570,13 @@ export const useOnlineGame = () => {
       is_finished: true,
     }).eq('id', myPlayerId);
 
-    // If all other players are already done, finish the session
-    const allDone = session.players.every(p =>
-      p.id === myPlayerId || p.isFinished || p.isBusted
-    );
+    // Query fresh player data — snapshot in session can be stale when multiple players
+    // time out simultaneously, causing the allDone check to miss concurrent lock-ins.
+    const { data: freshPlayers } = await supabase
+      .from('game_players')
+      .select('id, is_finished, is_busted')
+      .eq('session_id', session.id);
+    const allDone = freshPlayers?.every(p => p.is_finished || p.is_busted) ?? false;
     if (allDone) {
       await supabase.from('game_sessions')
         .update({ status: 'finished' })

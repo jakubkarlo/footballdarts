@@ -88,19 +88,27 @@ const OnlineFlipCard = ({
 
             {/* Photo */}
             <div style={{ position: 'relative', flex: 1, background: '#1a120a', overflow: 'hidden' }}>
-              <img
-                src={throw_.photo || BBC_PHOTO}
-                alt={throw_.playerName}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onError={(e) => { e.currentTarget.src = BBC_PHOTO; }}
-              />
+              {throw_.appearances > 0 && (
+                <img
+                  src={throw_.photo || BBC_PHOTO}
+                  alt={throw_.playerName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { e.currentTarget.src = BBC_PHOTO; }}
+                />
+              )}
+              {/* Miss: big X */}
+              {throw_.appearances === 0 && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14, background: 'rgb(185 28 28)' }}>
+                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '3.2rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>✕</div>
+                </div>
+              )}
               {/* bottom gradient */}
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 44, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }} />
               {/* surname */}
               <div style={{ position: 'absolute', bottom: 5, left: 5, right: 5, fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.82rem', color: 'white', letterSpacing: '0.06em', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
                 {surname}
               </div>
-              <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+              {throw_.appearances > 0 && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
             </div>
 
             {/* Stat footer */}
@@ -206,6 +214,7 @@ export const OnlineBlitzGameBoard = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
+  const [showWinner, setShowWinner] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -221,12 +230,9 @@ export const OnlineBlitzGameBoard = ({
 
   const usedIds = new Set(draft.map(e => e.id));
 
-  const draftTotal = draft.reduce((s, e) => s + e.appearances, 0);
-  const previewScore = (myPlayer?.score ?? session.startingScore) - draftTotal;
-
   const SCORE_R = 46;
   const SCORE_C = 2 * Math.PI * SCORE_R;
-  const scoreFraction = Math.max(0, Math.min(1, previewScore / session.startingScore));
+  const displayScore = myPlayer?.score ?? session.startingScore;
 
   // ── Reveal signal ─────────────────────────────────────────────────────────────
 
@@ -237,6 +243,14 @@ export const OnlineBlitzGameBoard = ({
       setIsRevealed(true);
     }
   }, [revealSignal]);
+
+  useEffect(() => {
+    if (!isRevealed) return;
+    const maxCards = Math.max(...session.players.map(p => p.throws.length), 0);
+    const delay = maxCards * 0.09 + 1.2;
+    const t = setTimeout(() => setShowWinner(true), delay * 1000);
+    return () => clearTimeout(t);
+  }, [isRevealed, session.players]);
 
   // ── Timer ─────────────────────────────────────────────────────────────────────
 
@@ -279,7 +293,12 @@ export const OnlineBlitzGameBoard = ({
     setDraftError(null);
     try {
       const fp = await searchPlayer(session.club.id, name, playerId);
-      if (!fp) { setDraftError(`Nie znaleziono: ${name}`); return; }
+      if (!fp) {
+        if (draft.some(e => e.name.toLowerCase() === name.toLowerCase())) { setDraftError(`${name} już jest na liście!`); return; }
+        const entry: OnlineDraftEntry = { id: `unknown-${name}-${Date.now()}`, name, appearances: 0, photo: undefined, position: '' };
+        setDraft(prev => [entry, ...prev]);
+        return;
+      }
       if (fp.appearances > 180) { setDraftError(`${fp.name} ma ${fp.appearances} występów — przekracza limit 180!`); return; }
       if (usedIds.has(fp.id)) { setDraftError(`${fp.name} już jest na liście!`); return; }
       const entry: OnlineDraftEntry = { id: fp.id, name: fp.name, appearances: fp.appearances, photo: fp.photo, position: fp.position };
@@ -347,10 +366,6 @@ export const OnlineBlitzGameBoard = ({
     const { winnerId, isDraw } = computeWinner(session.players);
     const winnerIdx = session.players.findIndex(p => p.id === winnerId);
 
-    // Delay timing: based on max cards across all players
-    const maxCards = Math.max(...session.players.map(p => p.throws.length), 0);
-    const resultDelay = maxCards * 0.09 + 0.8;
-
     return (
       <div className="min-h-screen flex flex-col p-4 md:p-5" style={BG}>
         <AnimatePresence>{showRules && <RulesOverlay onClose={() => setShowRules(false)} startingScore={session.startingScore} />}</AnimatePresence>
@@ -358,12 +373,12 @@ export const OnlineBlitzGameBoard = ({
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
 
-          {/* Winner banner — appears after flip */}
-          {isRevealed && (
+          {/* Winner banner — appears after all cards flipped */}
+          {showWinner && (
             <motion.div
               initial={{ opacity: 0, scale: 0.7, y: -16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ delay: resultDelay, type: 'spring', stiffness: 180, damping: 14 }}
+              transition={{ type: 'spring', stiffness: 180, damping: 14 }}
               style={{
                 marginBottom: 16,
                 background: winnerIdx >= 0 ? PLAYER_COLORS[winnerIdx] : '#5a4a35',
@@ -437,7 +452,7 @@ export const OnlineBlitzGameBoard = ({
           {/* Player rows — identical layout to local blitz */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', marginBottom: 28 }}>
             {session.players.map((player, pIdx) => {
-              const isWinner = isRevealed && player.id === winnerId && !isDraw;
+              const isWinner = showWinner && player.id === winnerId && !isDraw;
               const isBusted = player.isBusted;
               const playerThrows = player.throws;
 
@@ -455,7 +470,7 @@ export const OnlineBlitzGameBoard = ({
                     transition: 'border-color 0.3s, background 0.3s',
                   }}
                   animate={{ scale: isWinner ? 1.01 : 1 }}
-                  transition={{ delay: resultDelay + 0.1 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 18 }}
                 >
                   {/* Player header: label + score/bust */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -523,13 +538,13 @@ export const OnlineBlitzGameBoard = ({
             })}
           </div>
 
-          {/* New game button — after reveal */}
-          {isRevealed && (
+          {/* New game button — after winner shown */}
+          {showWinner && (
             <motion.button
               onClick={onLeave}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: resultDelay + 0.5 }}
+              transition={{ delay: 0.4 }}
               style={{
                 marginTop: 20,
                 background: 'white',
@@ -636,9 +651,8 @@ export const OnlineBlitzGameBoard = ({
         {myPlayer && (
           <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: myColor, borderRadius: 6, padding: '8px 16px' }}>
-              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
-                {myPlayer.playerName}
-                <span style={{ fontSize: '0.72rem', opacity: 0.7, marginLeft: 8 }}>— Twój wybór</span>
+              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.1em' }}>
+                PICK YOUR PLAYERS
               </span>
             </div>
           </div>
@@ -649,24 +663,14 @@ export const OnlineBlitzGameBoard = ({
           <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
             <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
               <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke="rgba(0,0,0,0.07)" strokeWidth="10" />
-              <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke={previewScore < 0 ? '#b91c1c' : myColor} strokeWidth="10"
-                strokeDasharray={SCORE_C} strokeDashoffset={SCORE_C * (1 - Math.max(0, scoreFraction))}
-                strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+              <circle cx="54" cy="54" r={SCORE_R} fill="none" stroke={myColor} strokeWidth="10"
+                strokeDasharray={SCORE_C} strokeDashoffset={0}
+                strokeLinecap="round" />
             </svg>
             <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <motion.span
-                key={previewScore}
-                initial={{ scale: 1.15, opacity: 0.6 }}
-                animate={{ scale: 1, opacity: 1 }}
-                style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', color: previewScore < 0 ? '#b91c1c' : myColor, lineHeight: 1 }}
-              >
-                {previewScore}
-              </motion.span>
-              {draftTotal > 0 && (
-                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.52rem', color: '#a09070', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 1 }}>
-                  -{draftTotal}
-                </span>
-              )}
+              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.9rem', color: myColor, lineHeight: 1 }}>
+                {displayScore}
+              </span>
             </div>
           </div>
 

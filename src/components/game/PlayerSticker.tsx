@@ -54,7 +54,7 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust, 
 
           {/* Miss: big X */}
           {!hidden && isMiss && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14 }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14, background: 'rgb(185 28 28)' }}>
               <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '3.2rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>✕</div>
             </div>
           )}
