@@ -168,7 +168,7 @@ export const PlayerInput = ({
                     <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                   </div>
                 ) : (
-                  <ul className="py-1">
+                  <ul className="py-1 max-h-64 overflow-y-auto">
                     {filteredSuggestions.map((player, index) => (
                       <li key={player.id}>
                         <button
