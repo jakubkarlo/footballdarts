@@ -919,7 +919,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         {allThrows[curIdx].length > 0 && (
           <div style={{ width: '100%', maxWidth: 420, marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
             <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.58rem', color: '#a09070', letterSpacing: '0.16em', textTransform: 'uppercase', flexShrink: 0 }}>
-              Użyci:
+              Already used:
             </span>
             <div style={{ display: 'flex', gap: 4, overflow: 'hidden', flexWrap: 'nowrap' }}>
               {allThrows[curIdx].flat().map(t => (

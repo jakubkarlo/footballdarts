@@ -358,10 +358,11 @@ export const OnlineTurnsGameBoard = ({
     setDraftError(null);
     try {
       const fp = await searchPlayer(session.club.id, name, playerId);
+      const knownPhoto = fp?.photo ?? allPlayers.find(p => p.id === (fp?.id ?? playerId))?.photo;
       const isMiss = !fp || fp.appearances === 0;
       const entry: OnlineDraftEntry = isMiss
-        ? { id: fp?.id ?? `miss-${Date.now()}`, name: fp?.name ?? name, appearances: 0, photo: fp?.photo, isMiss: true }
-        : { id: fp.id, name: fp.name, appearances: fp.appearances, photo: fp.photo, position: fp.position };
+        ? { id: fp?.id ?? `miss-${Date.now()}`, name: fp?.name ?? name, appearances: 0, photo: knownPhoto, isMiss: true }
+        : { id: fp.id, name: fp.name, appearances: fp.appearances, photo: knownPhoto ?? fp.photo, position: fp.position };
 
       if (!isMiss && usedIds.has(fp!.id)) {
         setDraftError(`${fp!.name} already used!`);
@@ -537,6 +538,36 @@ export const OnlineTurnsGameBoard = ({
         })).filter(bp => bp.throws.length > 0);
         if (byPlayer.length > 0) rounds.push({ roundNum: r, byPlayer });
       }
+      // Append STOPPED marker to the round where player stopped (the round AFTER their last throw)
+      session.players.forEach(player => {
+        if (!player.isFinished || player.isBusted) return;
+        let lastRoundIdx = -1;
+        rounds.forEach((round, i) => {
+          if (round.byPlayer.some(bp => bp.player.id === player.id)) lastRoundIdx = i;
+        });
+        // The stop round is the next round after their last throw.
+        // If that round doesn't exist yet (player stopped before throwing in a round with no DB data), create it.
+        const lastRoundNum = lastRoundIdx >= 0 ? rounds[lastRoundIdx].roundNum : 0;
+        const stopRoundNum = lastRoundNum + 1;
+        let stopRound = rounds.find(r => r.roundNum === stopRoundNum);
+        if (!stopRound) {
+          stopRound = { roundNum: stopRoundNum, byPlayer: [] };
+          rounds.push(stopRound);
+          rounds.sort((a, b) => a.roundNum - b.roundNum);
+        }
+        let bp = stopRound.byPlayer.find(b => b.player.id === player.id);
+        if (!bp) {
+          bp = { player, throws: [] };
+          stopRound.byPlayer.push(bp);
+        }
+        bp.throws.push({ playerId: `stopped-${player.id}`, playerName: 'Stopped', appearances: 0, timestamp: 0 });
+      });
+      // Sort each round's players by their position in session.players
+      rounds.forEach(round => {
+        round.byPlayer.sort((a, b) =>
+          session.players.findIndex(p => p.id === a.player.id) - session.players.findIndex(p => p.id === b.player.id)
+        );
+      });
       setHistoryData(rounds);
       setHistoryRound(0);
       setShowHistory(true);
@@ -576,7 +607,7 @@ export const OnlineTurnsGameBoard = ({
                       {historyData[historyRound]?.byPlayer.map(({ player, throws: playerThrows }, pIdx) => {
                         const colorIdx = session.players.findIndex(p => p.id === player.id);
                         const color = PLAYER_COLORS[colorIdx >= 0 ? colorIdx : 0];
-                        const hasMiss = playerThrows.some(t => t.missed);
+                        const hasBadThrow = playerThrows.some(t => t.missed || t.playerId.startsWith('timeout-'));
                         return (
                           <div key={player.id}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -586,20 +617,33 @@ export const OnlineTurnsGameBoard = ({
                               {player.isBusted && (
                                 <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>• bust</span>
                               )}
-                              {player.isFinished && !player.isBusted && player.score > 0 && (
-                                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#92400e', letterSpacing: '0.08em', textTransform: 'uppercase' }}>• stopped</span>
+                            </div>
+                            <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: 8, borderRadius: 8, minHeight: 100, padding: '5px' }}>
+                              {playerThrows.map((t, ti) => {
+                                if (t.playerId.startsWith('timeout-') || t.playerId.startsWith('stopped-')) {
+                                  const label = t.playerId.startsWith('timeout-') ? 'TIMEOUT' : 'STOPPED';
+                                  return (
+                                    <motion.div key={t.playerId + ti}
+                                      initial={{ opacity: 0, scale: 0.55, rotate: -6 }}
+                                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                      transition={{ type: 'spring', stiffness: 260, damping: 20, delay: ti * 0.045 }}
+                                      style={{ width: 90, flexShrink: 0, background: 'white', borderRadius: 6, padding: 3, boxShadow: '0 5px 18px rgba(0,0,0,0.28)' }}
+                                    >
+                                      <div style={{ borderRadius: 4, overflow: 'hidden', background: '#1a120a', height: 130, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 8px)' }} />
+                                        <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.14em', textAlign: 'center', zIndex: 1 }}>{label}</div>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                }
+                                return <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} color={color} />;
+                              })}
+                              {hasBadThrow && (
+                                <div style={{ position: 'absolute', inset: 0, borderRadius: 8, overflow: 'hidden', pointerEvents: 'none', zIndex: 20, background: 'rgba(185,28,28,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '4rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em' }}>MISS</div>
+                                </div>
                               )}
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                              {playerThrows.map((t, ti) => (
-                                <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} />
-                              ))}
-                            </div>
-                            {hasMiss && (
-                              <div style={{ marginTop: 6, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                {session.allowMisses ? '−1 life · score unchanged' : 'miss · eliminated'}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -671,20 +715,21 @@ export const OnlineTurnsGameBoard = ({
             <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: myColor, borderRadius: 6, padding: '8px 16px' }}>
                 <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
-                  {myPlayer.playerName}
-                  <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: 8 }}>— Twój ruch</span>
+                  YOUR TURN
                 </span>
-                {session.allowMisses && (
-                  <span style={{ fontSize: '1.1rem', letterSpacing: '0.08em' }}>
-                    {[0, 1, 2].map((_, i) => (
-                      <span key={i} style={{ color: i < myPlayer.lives ? 'white' : 'rgba(255,255,255,0.25)', transition: 'color 0.2s' }}>♥</span>
-                    ))}
-                  </span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {session.allowMisses && (
+                    <span style={{ fontSize: '1.1rem', letterSpacing: '0.08em' }}>
+                      {[0, 1, 2].map((_, i) => (
+                        <span key={i} style={{ color: i < myPlayer.lives ? 'white' : 'rgba(255,255,255,0.25)', transition: 'color 0.2s' }}>♥</span>
+                      ))}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Score circle + countdown timer circle — identical to local TurnsGameBoard */}
+            {/* Score circle + timer */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 16 }}>
               <div style={{ position: 'relative', width: 108, height: 108, flexShrink: 0 }}>
                 <svg width="108" height="108" style={{ transform: 'rotate(-90deg)' }}>
@@ -716,6 +761,18 @@ export const OnlineTurnsGameBoard = ({
               )}
             </div>
 
+            {/* Used players — above input (timeouts excluded) */}
+            {myPlayer.throws.filter(t => !t.playerId.startsWith('timeout-')).length > 0 && (
+              <div style={{ width: '100%', maxWidth: 420, marginBottom: 8, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.6rem', color: '#a09070', letterSpacing: '0.16em', textTransform: 'uppercase', flexShrink: 0 }}>Already used:</span>
+                {myPlayer.throws.filter(t => !t.playerId.startsWith('timeout-')).map((t, i) => (
+                  <span key={i} style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.8rem', color: `${myColor}99`, textDecoration: 'line-through', letterSpacing: '0.04em' }}>
+                    {t.playerName}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Search */}
             <div style={{ width: '100%', maxWidth: 420, marginBottom: 8 }}>
               <PlayerInput
@@ -739,13 +796,13 @@ export const OnlineTurnsGameBoard = ({
             </AnimatePresence>
 
 
-            {/* Actions — identical to local TurnsGameBoard */}
+            {/* Actions */}
             <div style={{ width: '100%', maxWidth: 420, display: 'flex', gap: 8, marginBottom: 16 }}>
               <motion.button
                 onClick={handleLockIn}
                 disabled={draft.length === 0 || isSubmitting || hookLoading}
                 style={{
-                  flex: 1,
+                  flex: 3,
                   background: draft.length === 0 ? '#c4b89a' : myColor,
                   color: 'white',
                   fontFamily: 'Bebas Neue, sans-serif',
@@ -763,7 +820,7 @@ export const OnlineTurnsGameBoard = ({
               >
                 {isSubmitting
                   ? <span style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.6)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                  : 'Potwierdź strzał'
+                  : 'SHOOT!'
                 }
               </motion.button>
 
@@ -773,7 +830,7 @@ export const OnlineTurnsGameBoard = ({
                     key="stop-idle"
                     onClick={() => setStopConfirming(true)}
                     style={{
-                      width: 96, flexShrink: 0,
+                      flex: 2,
                       background: 'white', borderRadius: 6,
                       border: '2px solid #d4c4a0', cursor: 'pointer',
                       padding: '10px 4px', display: 'flex', flexDirection: 'column',
@@ -794,7 +851,7 @@ export const OnlineTurnsGameBoard = ({
                     key="stop-confirm"
                     initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
                     style={{
-                      width: 96, flexShrink: 0, background: '#fff8f0',
+                      flex: 2, background: '#fff8f0',
                       borderRadius: 6, border: '2px solid #92400e',
                       padding: '6px 5px', display: 'flex', flexDirection: 'column',
                       alignItems: 'center', gap: 4,
@@ -836,7 +893,7 @@ export const OnlineTurnsGameBoard = ({
                     >
                       <CardBack
                         playerName={myPlayer?.playerName ?? ''}
-                        color={entry.isMiss ? '#b91c1c' : myColor}
+                        color={myColor}
                         cardIndex={i}
                         footballPlayerName={entry.name}
                         onRemove={() => handleRemove(i)}
@@ -847,38 +904,18 @@ export const OnlineTurnsGameBoard = ({
               )}
             </div>
 
-            {/* Used players */}
-            {myPlayer.throws.length > 0 && (
-              <div style={{ width: '100%', maxWidth: 420, marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {myPlayer.throws.map((t, i) => (
-                  <span key={i} style={{ fontFamily: 'Barlow Condensed', fontWeight: 600, fontSize: '0.7rem', color: `${myColor}88`, textDecoration: 'line-through', letterSpacing: '0.04em' }}>
-                    {t.playerName}
-                  </span>
-                ))}
-              </div>
-            )}
           </>
         ) : (
           // ── WAITING ──
           <>
-            {/* Player strip — current active player */}
-            <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: currentColor, borderRadius: 6, padding: '8px 16px' }}>
-                <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.06em' }}>
-                  {currentPlayer?.playerName ?? '…'}
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {session.timer && waitingTimeLeft !== null && (
-                    <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: 'white', lineHeight: 1, opacity: 0.9 }}>
-                      {waitingTimeLeft}
-                    </span>
-                  )}
-                </div>
-              </div>
+            {/* PLEASE WAIT */}
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 'clamp(3rem, 14vw, 5rem)', color: currentColor, letterSpacing: '0.04em', lineHeight: 1 }}>
+                WAIT FOR TURN
+              </span>
             </div>
 
-
-            {/* Face-down cards placeholder — hides how many cards opponent is picking */}
+            {/* Face-down cards placeholder */}
             <div style={{ width: '100%', maxWidth: 420, marginBottom: 16 }}>
               <div style={{ border: '2px dashed #d4c4a0', borderRadius: 5, height: 112, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                 {[0, 1, 2].map(i => (
@@ -888,9 +925,6 @@ export const OnlineTurnsGameBoard = ({
                     style={{ width: 60, height: 80, borderRadius: 4, background: currentColor, opacity: 0.25 + i * 0.15, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}
                   />
                 ))}
-              </div>
-              <div style={{ textAlign: 'center', marginTop: 6, fontFamily: 'Barlow Condensed', fontWeight: 600, fontSize: '0.72rem', letterSpacing: '0.12em', color: '#b5a07a', textTransform: 'uppercase' }}>
-                Karty zakryte — wyniki po rundzie
               </div>
             </div>
 
@@ -904,27 +938,39 @@ export const OnlineTurnsGameBoard = ({
                   const isActive = p.playerOrder === session.currentPlayerIndex;
                   const isMe = p.id === myPlayerId;
                   const hasStopped = p.isFinished && p.score > 0;
+                  const textColor = isActive ? 'white' : (p.isBusted ? '#a09070' : '#1e1810');
                   return (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderLeft: `4px solid ${isActive ? color : 'transparent'}`, background: isActive ? `${color}0d` : 'transparent', borderBottom: idx < session.players.length - 1 ? '1px solid #f0e8d6' : 'none', transition: 'all 0.3s ease' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.isBusted ? '#d4c4a0' : color, flexShrink: 0 }} />
-                      <div style={{ fontFamily: 'Barlow Condensed', fontWeight: 700, fontSize: '0.9rem', color: p.isBusted ? '#a09070' : '#1e1810', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '15px 16px', background: isActive ? color : 'transparent', borderBottom: idx < session.players.length - 1 ? `1px solid ${isActive ? `${color}cc` : '#f0e8d6'}` : 'none', transition: 'all 0.3s ease' }}>
+                      <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: isActive ? 'white' : color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
                         {p.playerName}
-                        {isMe && <span style={{ fontSize: '0.6rem', color, marginLeft: 5 }}>(Ty)</span>}
                       </div>
-                      {session.allowMisses && (
-                        <div style={{ fontSize: '0.75rem' }}>
-                          {[0, 1, 2].map(i => <span key={i} style={{ color: i < p.lives ? '#b91c1c' : '#d4c4a0' }}>♥</span>)}
-                        </div>
-                      )}
+                      {isActive && session.timer && waitingTimeLeft !== null && (() => {
+                        const fraction = waitingTimeLeft / session.timer;
+                        return (
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(white ${fraction * 360}deg, rgba(255,255,255,0.25) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: 26, height: 26, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.8rem', color: 'white', lineHeight: 1, textAlign: 'center' }}>{waitingTimeLeft}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <div style={{ flexShrink: 0 }}>
+                        {hasStopped ? (
+                          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.75rem', color: '#1e1810', textTransform: 'uppercase', letterSpacing: '0.12em' }}>STOPPED</span>
+                        ) : session.allowMisses ? (
+                          <div style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>
+                            {[0, 1, 2].map(i => (
+                              <span key={i} style={{ color: i < p.lives ? (isActive ? 'white' : '#b91c1c') : (isActive ? 'rgba(255,255,255,0.25)' : '#d4c4a0') }}>♥</span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         {p.isBusted
-                          ? <span style={{ fontFamily: 'Barlow Condensed', fontWeight: 800, fontSize: '0.7rem', color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BUST</span>
-                          : hasStopped
-                          ? <div><div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#15803d' }}>{p.score}</div><div style={{ fontFamily: 'Barlow Condensed', fontWeight: 700, fontSize: '0.52rem', color: '#15803d', textTransform: 'uppercase' }}>STOP</div></div>
-                          : <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.2rem', color: '#1e1810' }}>{p.score}</span>
+                          ? <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.7rem', color: isActive ? 'white' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BUST</span>
+                          : <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: textColor }}>{p.score}</span>
                         }
                       </div>
-                      {isActive && <Wifi size={12} color={color} style={{ flexShrink: 0 }} />}
                     </div>
                   );
                 })}

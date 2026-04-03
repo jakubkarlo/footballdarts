@@ -8,34 +8,13 @@ interface PlayerStickerProps {
   index: number;
   ownerName?: string;
   hidden?: boolean;
+  color?: string; // player team color override
 }
 
-const POSITION_COLORS: Record<string, string> = {
-  goalkeeper: '#15803d',
-  defender:   '#1e3a8a',
-  midfielder: '#b45309',
-  forward:    '#b91c1c',
-  attacker:   '#b91c1c',
-};
-
-function positionColor(position?: string) {
-  if (!position) return '#1e3a8a';
-  return POSITION_COLORS[position.toLowerCase()] ?? '#1e3a8a';
-}
-
-function positionAbbr(position?: string) {
-  if (!position) return 'MF';
-  const p = position.toLowerCase();
-  if (p.includes('goal')) return 'GK';
-  if (p.includes('def'))  return 'DF';
-  if (p.includes('mid'))  return 'MF';
-  return 'FW';
-}
-
-export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }: PlayerStickerProps & { bust?: boolean }) => {
-  const color   = hidden ? '#4a3d2e' : positionColor(throw_.position);
-  const abbr    = positionAbbr(throw_.position);
-  const num     = String(index + 1).padStart(3, '0');
+export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust, color: colorProp }: PlayerStickerProps & { bust?: boolean }) => {
+  const isMiss = !hidden && throw_.missed && !throw_.playerId.startsWith('timeout-') && !(bust ?? throw_.busted);
+  const color  = hidden ? '#4a3d2e' : (colorProp ?? '#1e3a8a');
+  const num    = String(index + 1).padStart(3, '0');
   const surname = throw_.playerName.split(' ').slice(-1)[0] ?? throw_.playerName;
 
   return (
@@ -52,7 +31,6 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }
         boxShadow: '0 5px 18px rgba(0,0,0,0.28), 0 1px 4px rgba(0,0,0,0.14)',
       }}
     >
-      {/* Inner card — rounded clip */}
       <div style={{ borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
 
         {/* ── Photo area ───────────────────────────────────────────── */}
@@ -64,8 +42,8 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }
             : '#1a120a',
           overflow: 'hidden',
         }}>
-          {/* Photo */}
-          {!hidden && (
+          {/* Photo — only for non-miss, non-hidden */}
+          {!hidden && !isMiss && (
             <img
               src={throw_.photo || BBC_PHOTO}
               alt={throw_.playerName}
@@ -74,71 +52,78 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }
             />
           )}
 
-          {/* Bottom gradient for name legibility */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0, height: 44,
-            background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
-          }} />
+          {/* Miss: big X */}
+          {!hidden && isMiss && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14 }}>
+              <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '3.2rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>✕</div>
+            </div>
+          )}
 
-          {/* Position badge — top left */}
-          <div style={{
-            position: 'absolute', top: 5, left: 5,
-            background: hidden ? 'rgba(255,255,255,0.12)' : color,
-            borderRadius: 2,
-            padding: '2px 5px',
-            fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 800,
-            fontSize: '0.52rem',
-            color: 'white',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-          }}>
-            {hidden ? '?' : abbr}
-          </div>
+          {!hidden && (
+            <>
+              {/* Bottom gradient for name legibility */}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0, height: 44,
+                background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
+              }} />
 
-          {/* Sticker number — top right */}
-          <div style={{
-            position: 'absolute', top: 5, right: 5,
-            fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 700,
-            fontSize: '0.48rem',
-            color: 'rgba(255,255,255,0.45)',
-            letterSpacing: '0.04em',
-          }}>
-            #{num}
-          </div>
+              {/* Sticker number — top right */}
+              {!isMiss && (
+                <div style={{
+                  position: 'absolute', top: 5, right: 5,
+                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontWeight: 700,
+                  fontSize: '0.48rem',
+                  color: 'rgba(255,255,255,0.45)',
+                  letterSpacing: '0.04em',
+                }}>
+                  #{num}
+                </div>
+              )}
 
-          {/* Player surname — bottom overlay */}
-          <div style={{
-            position: 'absolute', bottom: 5, left: 5, right: 5,
-            fontFamily: 'Bebas Neue, sans-serif',
-            fontSize: hidden ? '0.85rem' : '0.82rem',
-            color: hidden ? 'rgba(255,255,255,0.28)' : 'white',
-            letterSpacing: '0.06em',
-            lineHeight: 1,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            fontStyle: hidden ? 'italic' : 'normal',
-            textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-          }}>
-            {hidden ? '???' : surname}
-          </div>
+              {/* Player surname — bottom overlay */}
+              <div style={{
+                position: 'absolute', bottom: 5, left: 5, right: 5,
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '0.82rem',
+                color: 'white',
+                letterSpacing: '0.06em',
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+              }}>
+                {surname}
+              </div>
 
-          {/* Foil shimmer */}
-          {!hidden && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+              {/* Foil shimmer — only for correct picks */}
+              {!isMiss && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+            </>
+          )}
 
           {/* Hidden "?" watermark */}
           {hidden && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'Bebas Neue, sans-serif',
-              fontSize: '3rem',
-              color: 'rgba(255,255,255,0.08)',
-              pointerEvents: 'none',
-            }}>?</div>
+            <>
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '3rem',
+                color: 'rgba(255,255,255,0.08)',
+                pointerEvents: 'none',
+              }}>?</div>
+              <div style={{
+                position: 'absolute', bottom: 5, left: 5, right: 5,
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '0.85rem',
+                color: 'rgba(255,255,255,0.28)',
+                letterSpacing: '0.06em',
+                lineHeight: 1,
+                fontStyle: 'italic',
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+              }}>???</div>
+            </>
           )}
         </div>
 
@@ -165,7 +150,6 @@ export const PlayerSticker = ({ throw_, index, ownerName, hidden = false, bust }
           position: 'relative',
           overflow: 'hidden',
         }}>
-          {/* subtle diagonal texture */}
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 6px)',

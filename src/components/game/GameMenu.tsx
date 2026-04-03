@@ -234,22 +234,6 @@ export const GameMenu = ({
           )}
         </AnimatePresence>
 
-        <motion.p
-          className="mt-10 text-center"
-          style={{
-            fontFamily: 'Barlow Condensed, sans-serif',
-            fontWeight: 600,
-            fontSize: '0.72rem',
-            letterSpacing: '0.12em',
-            color: '#8a7553',
-            textTransform: 'uppercase',
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.55 }}
-        >
-          Max throw: 180 appearances · Bust if score drops below zero
-        </motion.p>
       </div>
 
       <div

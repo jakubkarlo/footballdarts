@@ -85,7 +85,6 @@ export const RoundResultTile = ({
     >
       <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: light ? 'rgba(255,255,255,0.8)' : color, letterSpacing: '0.06em', marginBottom: 8 }}>
         {playerName}
-        {isMe && <span style={{ fontSize: '0.62rem', opacity: 0.7, marginLeft: 4 }}>(Ty)</span>}
       </div>
 
       {isWaiting && (
@@ -182,7 +181,7 @@ export const GameOverScreen = ({ players, onNewGame, onLeave, extraButtons }: Ga
       style={{ maxWidth: 480 }}
     >
       <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: '#8a7553', letterSpacing: '0.3em', marginBottom: 16, textTransform: 'uppercase' }}>
-        {winners.length === 0 ? '— Brak zwycięzcy —' : isDraw ? '★ Remis ★' : '★ Zwycięzca ★'}
+        {winners.length === 0 ? '— NO WINNER —' : isDraw ? '★ DRAW ★' : '★ WINNER ★'}
       </div>
 
       {winners.length > 0 && (
@@ -193,21 +192,16 @@ export const GameOverScreen = ({ players, onNewGame, onLeave, extraButtons }: Ga
           style={{ background: winnerBg, borderRadius: 8, padding: '28px 40px', textAlign: 'center', boxShadow: `0 8px 40px ${winnerColor}55, 0 0 0 4px white, 0 0 0 7px ${winnerColor}`, position: 'relative', overflow: 'hidden', marginBottom: 24 }}
         >
           <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
-          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.25em', marginBottom: 6 }}>
-            {isDraw ? 'DRAW' : 'WINNER'}
-          </div>
           {isDraw ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {winners.map(w => (
                 <span key={w.id} style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1.1 }}>
-                  {w.name}{w.isMe && <span style={{ fontSize: '0.9rem', marginLeft: 8, opacity: 0.8 }}>(Ty!)</span>}
                 </span>
               ))}
             </div>
           ) : (
             <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1 }}>
               {winners[0].name}
-              {winners[0].isMe && <span style={{ fontSize: '0.9rem', marginLeft: 10, opacity: 0.8 }}>(Ty!)</span>}
             </div>
           )}
           <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.9rem', color: 'rgba(255,255,255,0.75)', marginTop: 8 }}>
@@ -224,7 +218,6 @@ export const GameOverScreen = ({ players, onNewGame, onLeave, extraButtons }: Ga
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
               <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', color: '#3a2e1e', letterSpacing: '0.04em', flex: 1 }}>
                 {p.name}
-                {p.isMe && <span style={{ fontSize: '0.7rem', color: p.color, marginLeft: 5 }}>(Ty)</span>}
               </span>
               {p.isElim
                 ? <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.72rem', color: '#b91c1c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>BUST</span>

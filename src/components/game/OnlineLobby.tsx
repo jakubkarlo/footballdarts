@@ -61,7 +61,7 @@ export const OnlineLobby = ({
         mode={session.mode}
         selectedClub={session.club}
         onClubSelect={onSetClub}
-        onStart={onStartGame}
+        onStart={() => setPhase('waiting')}
         onBack={() => setPhase('waiting')}
         hidePlayerNames
       />
@@ -243,48 +243,92 @@ export const OnlineLobby = ({
           </motion.div>
         )}
 
-        {/* Host action */}
-        {isHost && amReady && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-            <motion.button
-              onClick={() => setPhase('club')}
-              disabled={!allReady || isLoading}
-              style={{
-                width: '100%',
-                background: allReady ? '#1e3a8a' : 'rgba(30,58,138,0.35)',
-                color: 'white',
-                fontFamily: 'Bebas Neue, sans-serif',
-                fontSize: '1.5rem',
-                letterSpacing: '0.2em',
-                padding: '14px 0',
-                borderRadius: 6,
-                border: 'none',
-                cursor: allReady ? 'pointer' : 'not-allowed',
-                boxShadow: allReady ? '0 4px 18px rgba(30,58,138,0.4)' : 'none',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                position: 'relative', overflow: 'hidden',
-              }}
-              whileHover={allReady ? { scale: 1.02, y: -2 } : {}}
-              whileTap={allReady ? { scale: 0.97 } : {}}
-            >
-              {allReady && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
-              {isLoading ? <Loader2 size={22} className="animate-spin" /> : <><Play size={18} /> Wybierz klub</>}
-            </motion.button>
-            {!allReady && (
-              <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.08em' }}>
-                Czekaj aż wszyscy będą gotowi
+        {/* Club bar + actions — visible for all ready players */}
+        {amReady && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            {/* Club bar */}
+            <AnimatePresence mode="wait">
+              {session.club ? (
+                <motion.div
+                  key="club"
+                  initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                  style={{ ...OUTLINE_BTN, color: '#1e3a8a', borderColor: '#1e3a8a', padding: '9px 14px', gap: 8, cursor: 'default', justifyContent: 'center' }}
+                >
+                  <img
+                    src={session.club.logo}
+                    alt={session.club.name}
+                    style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
+                    onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
+                  />
+                  <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1rem', color: '#1e3a8a', letterSpacing: '0.04em' }}>
+                    {session.club.name}
+                  </span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="no-club"
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  style={{ textAlign: 'center', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.82rem', color: '#a09070', letterSpacing: '0.08em', padding: '8px 0' }}
+                >
+                  {isHost ? 'Wybierz klub dla wszystkich' : 'Host wybiera klub…'}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Host buttons */}
+            {isHost && (
+              <AnimatePresence mode="wait">
+                {session.club ? (
+                  <motion.div key="has-club" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <motion.button
+                      onClick={onStartGame}
+                      disabled={isLoading}
+                      style={{ width: '100%', background: '#15803d', color: 'white', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.6rem', letterSpacing: '0.2em', padding: '14px 0', borderRadius: 6, border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(21,128,61,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, position: 'relative', overflow: 'hidden' }}
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+                      {isLoading ? <Loader2 size={22} className="animate-spin" /> : <><Play size={18} /> Gramy!</>}
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setPhase('club')}
+                      style={{ ...OUTLINE_BTN, width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: '0.78rem' }}
+                      whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}
+                    >
+                      Zmień klub
+                    </motion.button>
+                  </motion.div>
+                ) : (
+                  <motion.div key="no-club" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                    <motion.button
+                      onClick={() => setPhase('club')}
+                      disabled={!allReady}
+                      style={{ width: '100%', background: allReady ? '#1e3a8a' : 'rgba(30,58,138,0.35)', color: 'white', fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', letterSpacing: '0.2em', padding: '14px 0', borderRadius: 6, border: 'none', cursor: allReady ? 'pointer' : 'not-allowed', boxShadow: allReady ? '0 4px 18px rgba(30,58,138,0.4)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, position: 'relative', overflow: 'hidden' }}
+                      whileHover={allReady ? { scale: 1.02, y: -2 } : {}}
+                      whileTap={allReady ? { scale: 0.97 } : {}}
+                    >
+                      {allReady && <div className="foil-shimmer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />}
+                      <Play size={18} /> Wybierz klub
+                    </motion.button>
+                    {!allReady && (
+                      <div style={{ textAlign: 'center', marginTop: 8, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.75rem', color: '#a09070', letterSpacing: '0.08em' }}>
+                        Czekaj aż wszyscy będą gotowi
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
+
+            {/* Non-host — waiting info after club chosen */}
+            {!isHost && session.club && (
+              <div style={{ textAlign: 'center', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.78rem', color: '#8a7553', letterSpacing: '0.08em' }}>
+                Czekasz aż host zacznie grę…
               </div>
             )}
-          </motion.div>
-        )}
-
-        {/* Non-host waiting */}
-        {!isHost && amReady && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            style={{ textAlign: 'center', padding: '16px', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, fontSize: '0.85rem', color: '#8a7553', letterSpacing: '0.08em' }}
-          >
-            Czekasz na hosta…
           </motion.div>
         )}
 

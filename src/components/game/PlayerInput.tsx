@@ -116,7 +116,6 @@ export const PlayerInput = ({
     <form onSubmit={handleSubmit} className="relative">
       <div className="relative flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             ref={inputRef}
             value={value}
@@ -129,10 +128,11 @@ export const PlayerInput = ({
             disabled={isLoading || disabled}
             autoComplete="off"
             className={cn(
-              'pl-12 pr-10 h-14 text-lg bg-card/90 backdrop-blur-sm border-2 border-border/50',
+              'pl-4 h-14 text-lg bg-card/90 backdrop-blur-sm border-2 border-border/50',
               'focus:border-primary focus:ring-2 focus:ring-primary/20',
               'placeholder:text-muted-foreground/50',
-              'transition-all duration-200 rounded-xl'
+              'transition-all duration-200 rounded-xl',
+              value && !isLoading ? 'pr-10' : 'pr-4'
             )}
           />
           <AnimatePresence>
@@ -146,9 +146,9 @@ export const PlayerInput = ({
                   setValue('');
                   setShowSuggestions(false);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                className="absolute right-3 top-0 bottom-0 my-auto w-5 h-5 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </motion.button>
             )}
           </AnimatePresence>
