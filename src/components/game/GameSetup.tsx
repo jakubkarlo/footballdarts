@@ -151,9 +151,18 @@ export const GameSetup = ({
           animate={{ opacity: 1, y: 0 }}
         >
           <motion.div className="text-center mb-8" initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2.8rem', color: '#1e3a8a', letterSpacing: '0.04em', lineHeight: 1 }}>
-              {mode === 'solo' ? 'Game Setup' : 'Choose Mode'}
-            </h1>
+            <h1 style={{
+                  fontFamily: 'Bebas Neue, sans-serif',
+                  fontSize: 'clamp(2.8rem, 8vw, 5rem)',
+                  lineHeight: 0.9,
+                  letterSpacing: '0.03em',
+                  color: '#1e3a8a',
+                }}
+              >
+                CREATE
+                <br />
+                <span style={{ color: '#b91c1c' }}>GAME</span>
+              </h1>
           </motion.div>
 
           {/* Mode cards — multiplayer only */}

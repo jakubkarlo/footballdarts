@@ -195,7 +195,7 @@ export const GameMenu = ({
                 whileHover={{ borderColor: 'rgba(122,99,64,0.65)', color: '#5a4820' }}
                 whileTap={{ scale: 0.97 }}
               >
-                Local Game
+                Local Game <br/> (Play together on one device)
               </motion.button>
             </motion.div>
           ) : (
