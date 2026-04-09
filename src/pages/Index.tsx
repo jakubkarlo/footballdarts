@@ -4,7 +4,7 @@ import { useOnlineGame } from '@/hooks/useOnlineGame';
 import { DartboardBackground } from '@/components/game/DartboardBackground';
 import { GameMenu } from '@/components/game/GameMenu';
 import { GameSetup } from '@/components/game/GameSetup';
-import { GameBoard } from '@/components/game/GameBoard';
+import { SoloGameBoard } from '@/components/game/SoloGameBoard';
 import { GameResult } from '@/components/game/GameResult';
 import { BlitzGameBoard } from '@/components/game/BlitzGameBoard';
 import { BlitzResult } from '@/components/game/BlitzResult';
@@ -260,13 +260,8 @@ const Index = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <GameBoard
+              <SoloGameBoard
                 gameState={gameState}
-                isLoading={isLoading}
-                lastThrowResult={lastThrowResult}
-                onThrow={handleThrow}
-                onEndTurn={endTurn}
-                onFinish={handleFinish}
                 onReset={resetGame}
               />
             </motion.div>

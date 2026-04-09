@@ -301,45 +301,43 @@ export const GameSetup = ({
             </div>
           </div>
 
-          {/* Turn Timer — for multiplayer modes */}
-          {mode !== 'solo' && (
-            <div className="mb-6">
-              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                Turn Timer
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(mode === 'multiplayer-blitz'
-                  ? [null, 60, 180, 300] as const
-                  : [null, 30, 60, 90] as const
-                ).map((val) => (
-                  <motion.button
-                    key={String(val)}
-                    onClick={() => setTimer(val as typeof timer)}
-                    style={{
-                      flex: 1, padding: '9px 0', borderRadius: '5px',
-                      background: timer === val ? '#1e3a8a' : 'white',
-                      color: timer === val ? 'white' : '#1e3a8a',
-                      fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
-                      boxShadow: timer === val ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
-                      border: `2px solid ${timer === val ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
-                      cursor: 'pointer', transition: 'all 0.18s',
-                    }}
-                    whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
-                  >
-                    {val === null ? 'OFF' : val < 120 ? `${val}s` : `${val / 60} min`}
-                  </motion.button>
-                ))}
-              </div>
-              {timer !== null && (
-                <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
-                  {mode === 'multiplayer-blitz'
-                    ? 'Timeout = picks are locked in automatically.'
-                    : allowMisses ? 'Timeout = lose 1 life.' : 'Timeout = eliminated.'}{' '}
-                  {mode !== 'multiplayer-blitz' && 'Player is skipped for the round.'}
-                </div>
-              )}
+          {/* Turn Timer */}
+          <div className="mb-6">
+            <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Turn Timer
             </div>
-          )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(mode === 'multiplayer-blitz'
+                ? [null, 60, 180, 300] as const
+                : [null, 30, 60, 90] as const
+              ).map((val) => (
+                <motion.button
+                  key={String(val)}
+                  onClick={() => setTimer(val as typeof timer)}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: '5px',
+                    background: timer === val ? '#1e3a8a' : 'white',
+                    color: timer === val ? 'white' : '#1e3a8a',
+                    fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.1rem', letterSpacing: '0.06em',
+                    boxShadow: timer === val ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                    border: `2px solid ${timer === val ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                    cursor: 'pointer', transition: 'all 0.18s',
+                  }}
+                  whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                >
+                  {val === null ? 'OFF' : val < 120 ? `${val}s` : `${val / 60} min`}
+                </motion.button>
+              ))}
+            </div>
+            {timer !== null && (
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontSize: '0.72rem', color: '#a09070', marginTop: '5px', lineHeight: 1.4 }}>
+                {mode === 'multiplayer-blitz'
+                  ? 'Timeout = picks are locked in automatically.'
+                  : allowMisses ? 'Timeout = lose 1 life.' : 'Timeout = eliminated.'}{' '}
+                {mode === 'multiplayer-turns' && 'Player is skipped for the round.'}
+              </div>
+            )}
+          </div>
 
           {/* Allow Misses toggle — only for Turns mode */}
           {mode !== 'multiplayer-blitz' && <div className="mb-6">
