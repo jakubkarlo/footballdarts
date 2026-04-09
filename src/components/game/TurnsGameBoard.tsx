@@ -134,8 +134,10 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
     const results: RoundResult[] = [];
 
     for (const pIdx of draftOrder) {
-      // Stopped players: skip, show as stopped in results
+      // Stopped players: record placeholder throw and skip scoring
       if (currentStopped[pIdx]) {
+        const stoppedThrow: Throw[] = [{ playerId: `stopped-${pIdx}-${Date.now()}`, playerName: 'Stopped', appearances: 0, timestamp: Date.now() }];
+        newThrows[pIdx] = [...newThrows[pIdx], stoppedThrow];
         results.push({ pIdx, apps: 0, elim: false, stopped: true, hitZero: false });
         continue;
       }
@@ -168,8 +170,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
         timestamp: Date.now(),
         photo: fp.photo,
         position: fp.position,
-        busted: fp.isMiss,
-        missed: fp.isMiss,
+        missed: fp.isMiss ?? false,
       }));
       newThrows[pIdx] = [...newThrows[pIdx], throws];
       results.push({ pIdx, apps: hasMiss ? 0 : total, elim, stopped: false, hitZero, reason, hasMiss });
@@ -524,20 +525,38 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                               {eliminated[pIdx] && activeRound === allThrows[pIdx].length - 1 && (
                                 <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>• bust</span>
                               )}
-                              {stopped[pIdx] && activeRound === allThrows[pIdx].length - 1 && (
-                                <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#92400e', letterSpacing: '0.08em', textTransform: 'uppercase' }}>• stopped</span>
-                              )}
                             </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                              {roundThrows.map((t, ti) => (
-                                <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} />
-                              ))}
-                            </div>
-                            {roundThrows.some(t => t.missed) && (
-                              <div style={{ marginTop: 6, fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.65rem', color: '#b91c1c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                {allowMisses ? '−1 life · score unchanged' : 'miss · eliminated'}
-                              </div>
-                            )}
+                            {(() => {
+                              const hasBadThrow = roundThrows.some(t => t.missed || t.playerId.startsWith('timeout-'));
+                              return (
+                                <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', gap: 8, borderRadius: 8, minHeight: 100, padding: '5px' }}>
+                                  {roundThrows.map((t, ti) => {
+                                    if (t.playerId.startsWith('timeout-') || t.playerId.startsWith('stopped-')) {
+                                      const label = t.playerId.startsWith('timeout-') ? 'TIMEOUT' : 'STOPPED';
+                                      return (
+                                        <motion.div key={t.playerId + ti}
+                                          initial={{ opacity: 0, scale: 0.55, rotate: -6 }}
+                                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                          transition={{ type: 'spring', stiffness: 260, damping: 20, delay: ti * 0.045 }}
+                                          style={{ width: 90, flexShrink: 0, background: 'white', borderRadius: 6, padding: 3, boxShadow: '0 5px 18px rgba(0,0,0,0.28)' }}
+                                        >
+                                          <div style={{ borderRadius: 4, overflow: 'hidden', background: '#1a120a', height: 130, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 8px)' }} />
+                                            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.14em', textAlign: 'center', zIndex: 1 }}>{label}</div>
+                                          </div>
+                                        </motion.div>
+                                      );
+                                    }
+                                    return <PlayerSticker key={t.playerId + ti} throw_={t} index={ti} color={PLAYER_COLORS[pIdx]} />;
+                                  })}
+                                  {hasBadThrow && (
+                                    <div style={{ position: 'absolute', inset: 0, borderRadius: 8, overflow: 'hidden', pointerEvents: 'none', zIndex: 20, background: 'rgba(185,28,28,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '4rem', color: 'rgba(255,255,255,0.7)', letterSpacing: '0.2em' }}>MISS</div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })}
@@ -812,7 +831,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
             onClick={handleLockIn}
             disabled={curDraft.length === 0}
             style={{
-              flex: 1,
+              flex: 3,
               background: curDraft.length === 0 ? '#c4b89a' : curColor,
               color: 'white',
               fontFamily: 'Bebas Neue, sans-serif',
@@ -837,7 +856,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 key="stop-idle"
                 onClick={() => setStopConfirming(true)}
                 style={{
-                  width: 96, flexShrink: 0,
+                  flex: 2,
                   background: 'white', borderRadius: 6,
                   border: '2px solid #d4c4a0', cursor: 'pointer',
                   padding: '10px 4px', display: 'flex', flexDirection: 'column',
@@ -858,7 +877,7 @@ export const TurnsGameBoard = ({ gameState, onReset }: TurnsGameBoardProps) => {
                 key="stop-confirm"
                 initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }}
                 style={{
-                  width: 96, flexShrink: 0, background: '#fff8f0',
+                  flex: 2, background: '#fff8f0',
                   borderRadius: 6, border: '2px solid #92400e',
                   padding: '6px 5px', display: 'flex', flexDirection: 'column',
                   alignItems: 'center', gap: 4,

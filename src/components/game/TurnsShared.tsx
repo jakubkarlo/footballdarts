@@ -196,6 +196,7 @@ export const GameOverScreen = ({ players, onNewGame, onLeave, extraButtons }: Ga
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {winners.map(w => (
                 <span key={w.id} style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: 'white', letterSpacing: '0.04em', lineHeight: 1.1 }}>
+                  {w.name}
                 </span>
               ))}
             </div>

@@ -157,6 +157,7 @@ export const OnlineTurnsGameBoard = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [stopConfirming, setStopConfirming] = useState(false);
+  const [myScoreBeforeRound, setMyScoreBeforeRound] = useState<number | null>(null);
   const [showRules, setShowRules] = useState(false);
   const [timeoutToast, setTimeoutToast] = useState<{ msg: string; isElim: boolean } | null>(null);
 
@@ -265,6 +266,7 @@ export const OnlineTurnsGameBoard = ({
     if (session.roundNumber <= prevRoundRef.current) return;
     const completedRound = prevRoundRef.current;
     prevRoundRef.current = session.roundNumber;
+    setMyScoreBeforeRound(null);
 
     supabase
       .from('game_throws')
@@ -388,6 +390,7 @@ export const OnlineTurnsGameBoard = ({
     stopTimer();
     setIsSubmitting(true);
     setDraftError(null);
+    setMyScoreBeforeRound(myPlayer?.score ?? null);
     await onLockIn(draft);
     setIsSubmitting(false);
     setDraft([]);
@@ -954,23 +957,29 @@ export const OnlineTurnsGameBoard = ({
                           </div>
                         );
                       })()}
-                      <div style={{ flexShrink: 0 }}>
-                        {hasStopped ? (
-                          <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.75rem', color: '#1e1810', textTransform: 'uppercase', letterSpacing: '0.12em' }}>STOPPED</span>
-                        ) : session.allowMisses ? (
-                          <div style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>
-                            {[0, 1, 2].map(i => (
-                              <span key={i} style={{ color: i < p.lives ? (isActive ? 'white' : '#b91c1c') : (isActive ? 'rgba(255,255,255,0.25)' : '#d4c4a0') }}>♥</span>
-                            ))}
+                      {isMe && myScoreBeforeRound !== null ? (
+                        <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.75rem', color: isActive ? 'white' : color, textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>LOCKED IN</span>
+                      ) : (
+                        <>
+                          <div style={{ flexShrink: 0 }}>
+                            {hasStopped ? (
+                              <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.75rem', color: '#1e1810', textTransform: 'uppercase', letterSpacing: '0.12em' }}>STOPPED</span>
+                            ) : session.allowMisses ? (
+                              <div style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>
+                                {[0, 1, 2].map(i => (
+                                  <span key={i} style={{ color: i < p.lives ? (isActive ? 'white' : '#b91c1c') : (isActive ? 'rgba(255,255,255,0.25)' : '#d4c4a0') }}>♥</span>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
-                        ) : null}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        {p.isBusted
-                          ? <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.7rem', color: isActive ? 'white' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BUST</span>
-                          : <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: textColor }}>{p.score}</span>
-                        }
-                      </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            {p.isBusted
+                              ? <span style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 800, fontSize: '0.7rem', color: isActive ? 'white' : '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>BUST</span>
+                              : <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem', color: textColor }}>{p.score}</span>
+                            }
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}

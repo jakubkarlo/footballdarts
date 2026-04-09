@@ -110,8 +110,6 @@ export const GameSetup = ({
   };
 
   const activePlayerNames = mode === 'solo' ? playerNames.slice(0, 1) : playerNames.slice(0, playerCount);
-  const canProceed = selectedClub && activePlayerNames.every((name) => name.trim());
-  const isMultiplayer = mode !== 'solo';
 
   return (
     <div
@@ -135,7 +133,7 @@ export const GameSetup = ({
           cursor: 'pointer',
           textTransform: 'uppercase',
         }}
-        onClick={step === 'config' ? onBack : step === 'club' ? () => setStep('config') : () => setStep('club')}
+        onClick={step === 'config' ? onBack : step === 'players' ? () => setStep('config') : hidePlayerNames ? () => setStep('config') : () => setStep('players')}
         initial={{ opacity: 0, x: -16 }}
         animate={{ opacity: 1, x: 0 }}
         whileHover={{ x: -2 }}
@@ -375,8 +373,40 @@ export const GameSetup = ({
             </div>
           </div>}
 
+          {/* Number of players */}
+          {mode !== 'solo' && (
+            <div className="mb-6">
+              <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '0.63rem', letterSpacing: '0.25em', color: '#8a7553', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                Number of Players
+              </div>
+              <div className="flex gap-2">
+                {[2, 3, 4].map((count) => {
+                  const active = playerCount === count;
+                  return (
+                    <motion.button
+                      key={count}
+                      onClick={() => setPlayerCount(count)}
+                      style={{
+                        flex: 1, padding: '9px 0', borderRadius: '5px',
+                        background: active ? '#1e3a8a' : 'white',
+                        color: active ? 'white' : '#1e3a8a',
+                        fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.25rem', letterSpacing: '0.04em',
+                        boxShadow: active ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2px #1e3a8a' : stickerShadow,
+                        border: `2px solid ${active ? '#1e3a8a' : 'rgba(30,58,138,0.18)'}`,
+                        cursor: 'pointer', transition: 'all 0.18s',
+                      }}
+                      whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+                    >
+                      {count}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <motion.button
-            onClick={() => setStep('club')}
+            onClick={() => setStep(hidePlayerNames ? 'club' : 'players')}
             style={{
               width: '100%', background: '#1e3a8a', color: 'white',
               fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.45rem', letterSpacing: '0.2em',
@@ -391,9 +421,131 @@ export const GameSetup = ({
             <ArrowRight size={20} />
           </motion.button>
         </motion.div>
-      ) : step === 'club' ? (
+      ) : step === 'players' ? (
         <>
-          {/* Header */}
+          {/* Player names step */}
+          <motion.div
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h1
+              style={{
+                fontFamily: 'Bebas Neue, sans-serif',
+                fontSize: '2.8rem',
+                color: '#1e3a8a',
+                letterSpacing: '0.04em',
+                lineHeight: 1,
+              }}
+            >
+              {mode === 'solo' ? 'Your Name' : 'Player Names'}
+            </h1>
+            <p
+              style={{
+                fontFamily: 'Barlow Condensed, sans-serif',
+                fontWeight: 600,
+                fontSize: '0.82rem',
+                letterSpacing: '0.12em',
+                color: '#8a7553',
+                textTransform: 'uppercase',
+                marginTop: '4px',
+              }}
+            >
+              Name your collectors
+            </p>
+          </motion.div>
+
+          {/* Name inputs */}
+          <motion.div
+            className="w-full max-w-md space-y-3"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+          >
+            {activePlayerNames.map((name, index) => (
+              <div key={index} style={{ position: 'relative' }}>
+                <User
+                  size={16}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#8a7553',
+                  }}
+                />
+                <input
+                  value={name}
+                  onChange={(e) => handlePlayerNameChange(index, e.target.value)}
+                  placeholder={`Player ${index + 1}`}
+                  style={{
+                    width: '100%',
+                    paddingLeft: '38px',
+                    paddingRight: '14px',
+                    paddingTop: '12px',
+                    paddingBottom: '12px',
+                    background: 'white',
+                    border: '2px solid #d4c4a0',
+                    borderRadius: '5px',
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    fontWeight: 600,
+                    fontSize: '1rem',
+                    letterSpacing: '0.05em',
+                    color: '#1e3a8a',
+                    outline: 'none',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1e3a8a'; }}
+                  onBlur={(e) => { e.target.style.borderColor = '#d4c4a0'; }}
+                />
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Next button */}
+          <motion.div
+            className="mt-8"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.16 }}
+          >
+            {(() => {
+              const canGoNext = activePlayerNames.every(n => n.trim());
+              return (
+                <motion.button
+                  onClick={() => setStep('club')}
+                  disabled={!canGoNext}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: canGoNext ? '#1e3a8a' : '#a09080',
+                    color: 'white',
+                    fontFamily: 'Bebas Neue, sans-serif',
+                    fontSize: '1.55rem',
+                    letterSpacing: '0.15em',
+                    padding: '13px 48px',
+                    borderRadius: '5px',
+                    border: 'none',
+                    cursor: canGoNext ? 'pointer' : 'default',
+                    boxShadow: canGoNext
+                      ? '0 4px 18px rgba(30,58,138,0.4), 0 2px 4px rgba(0,0,0,0.18)'
+                      : 'none',
+                  }}
+                  whileHover={canGoNext ? { scale: 1.04, y: -2 } : {}}
+                  whileTap={canGoNext ? { scale: 0.97 } : {}}
+                >
+                  NEXT
+                  <ArrowRight size={20} />
+                </motion.button>
+              );
+            })()}
+          </motion.div>
+        </>
+      ) : (
+        <>
+          {/* Club selection step */}
           <motion.div
             className="text-center mb-8"
             initial={{ opacity: 0, y: -18 }}
@@ -501,45 +653,26 @@ export const GameSetup = ({
             </motion.button>
           </motion.div>
 
-          {/* Next — below buttons, appears when club selected */}
+          {/* Kick off — appears when club selected */}
           {selectedClub && (
-            hidePlayerNames ? (
-              <motion.button
-                onClick={() => onStart([], allowMisses, timer)}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{
-                  background: '#1e3a8a', color: 'white',
-                  fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem',
-                  letterSpacing: '0.15em', padding: '12px 40px',
-                  borderRadius: '5px', border: 'none', cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                }}
-                whileHover={{ scale: 1.04, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                DONE
-              </motion.button>
-            ) : (
-              <motion.button
-                onClick={() => setStep('players')}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  background: '#1e3a8a', color: 'white',
-                  fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem',
-                  letterSpacing: '0.15em', padding: '12px 40px',
-                  borderRadius: '5px', border: 'none', cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
-                }}
-                whileHover={{ scale: 1.04, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                NEXT
-                <ArrowRight size={18} />
-              </motion.button>
-            )
+            <motion.button
+              onClick={() => onStart(hidePlayerNames ? [] : activePlayerNames, allowMisses, timer)}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                background: '#1e3a8a', color: 'white',
+                fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.4rem',
+                letterSpacing: '0.15em', padding: '12px 40px',
+                borderRadius: '5px', border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(30,58,138,0.38)',
+              }}
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              KICK OFF
+              <ArrowRight size={18} />
+            </motion.button>
           )}
 
           {/* Club browser modal */}
@@ -790,210 +923,6 @@ export const GameSetup = ({
               </motion.div>
             </div>
           )}
-        </>
-      ) : (
-        <>
-          {/* Player names step */}
-          <motion.div
-            className="text-center mb-8"
-            initial={{ opacity: 0, y: -18 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h1
-              style={{
-                fontFamily: 'Bebas Neue, sans-serif',
-                fontSize: '2.8rem',
-                color: '#1e3a8a',
-                letterSpacing: '0.04em',
-                lineHeight: 1,
-              }}
-            >
-              {mode === 'solo' ? 'Your Name' : 'Player Names'}
-            </h1>
-            <p
-              style={{
-                fontFamily: 'Barlow Condensed, sans-serif',
-                fontWeight: 600,
-                fontSize: '0.82rem',
-                letterSpacing: '0.12em',
-                color: '#8a7553',
-                textTransform: 'uppercase',
-                marginTop: '4px',
-              }}
-            >
-              Name your collectors
-            </p>
-          </motion.div>
-
-          {/* Club reminder */}
-          {selectedClub && (
-            <motion.div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'white',
-                borderRadius: '5px',
-                padding: '8px 14px',
-                marginBottom: '24px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06)',
-              }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <img
-                src={selectedClub.logo}
-                alt={selectedClub.name}
-                style={{ width: 28, height: 28, objectFit: 'contain' }}
-                onError={(e) => { e.currentTarget.src = '/placeholder.svg'; }}
-              />
-              <span
-                style={{
-                  fontFamily: 'Bebas Neue, sans-serif',
-                  fontSize: '1rem',
-                  color: '#1e3a8a',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {selectedClub.name}
-              </span>
-            </motion.div>
-          )}
-
-          {/* Player count */}
-          {isMultiplayer && (
-            <motion.div
-              className="mb-6"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <p
-                style={{
-                  fontFamily: 'Barlow Condensed, sans-serif',
-                  fontWeight: 700,
-                  fontSize: '0.7rem',
-                  letterSpacing: '0.2em',
-                  color: '#8a7553',
-                  textTransform: 'uppercase',
-                  textAlign: 'center',
-                  marginBottom: '10px',
-                }}
-              >
-                Number of players
-              </p>
-              <div className="flex gap-3 justify-center">
-                {[2, 3, 4].map((count) => (
-                  <motion.button
-                    key={count}
-                    onClick={() => setPlayerCount(count)}
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: '50%',
-                      fontFamily: 'Bebas Neue, sans-serif',
-                      fontSize: '1.4rem',
-                      letterSpacing: '0.03em',
-                      background: playerCount === count ? '#1e3a8a' : 'white',
-                      color: playerCount === count ? 'white' : '#1e3a8a',
-                      border: 'none',
-                      cursor: 'pointer',
-                      boxShadow: playerCount === count
-                        ? '0 3px 14px rgba(30,58,138,0.38), 0 0 0 2.5px #1e3a8a'
-                        : '0 2px 6px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)',
-                      transition: 'all 0.18s',
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.94 }}
-                  >
-                    {count}
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Name inputs */}
-          <motion.div
-            className="w-full max-w-md space-y-3"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-          >
-            {activePlayerNames.map((name, index) => (
-              <div key={index} style={{ position: 'relative' }}>
-                <User
-                  size={16}
-                  style={{
-                    position: 'absolute',
-                    left: 14,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#8a7553',
-                  }}
-                />
-                <input
-                  value={name}
-                  onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-                  placeholder={`Player ${index + 1}`}
-                  style={{
-                    width: '100%',
-                    paddingLeft: '38px',
-                    paddingRight: '14px',
-                    paddingTop: '12px',
-                    paddingBottom: '12px',
-                    background: 'white',
-                    border: '2px solid #d4c4a0',
-                    borderRadius: '5px',
-                    fontFamily: 'Barlow Condensed, sans-serif',
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    letterSpacing: '0.05em',
-                    color: '#1e3a8a',
-                    outline: 'none',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#1e3a8a'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#d4c4a0'; }}
-                />
-              </div>
-            ))}
-          </motion.div>
-
-          {/* Start button */}
-          <motion.div
-            className="mt-8"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.16 }}
-          >
-            <motion.button
-              onClick={() => onStart(activePlayerNames, allowMisses, timer)}
-              disabled={!canProceed}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: canProceed ? '#1e3a8a' : '#a09080',
-                color: 'white',
-                fontFamily: 'Bebas Neue, sans-serif',
-                fontSize: '1.55rem',
-                letterSpacing: '0.15em',
-                padding: '13px 48px',
-                borderRadius: '5px',
-                border: 'none',
-                cursor: canProceed ? 'pointer' : 'default',
-                boxShadow: canProceed
-                  ? '0 4px 18px rgba(30,58,138,0.4), 0 2px 4px rgba(0,0,0,0.18)'
-                  : 'none',
-              }}
-              whileHover={canProceed ? { scale: 1.04, y: -2 } : {}}
-              whileTap={canProceed ? { scale: 0.97 } : {}}
-            >
-              KICK OFF
-              <ArrowRight size={20} />
-            </motion.button>
-          </motion.div>
         </>
       )}
     </div>

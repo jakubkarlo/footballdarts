@@ -202,7 +202,7 @@ const FlipCard = ({
                 />
               )}
               {isMiss && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14 }}>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', paddingBottom: 14, background: 'rgb(185, 28, 28)' }}>
                   <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '3.2rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1 }}>✕</div>
                 </div>
               )}
@@ -614,6 +614,9 @@ export const BlitzGameBoard = ({
         >
           {/* Player strip */}
           <div style={{ width: '100%', maxWidth: 420, marginBottom: 14 }}>
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '2rem', color: PLAYER_COLORS[currentPickerIndex], letterSpacing: '0.05em', textAlign: 'center', marginBottom: 6 }}>
+              {currentPlayerName}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: PLAYER_COLORS[currentPickerIndex], borderRadius: 6, padding: '8px 16px' }}>
               <span style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: '1.5rem', color: 'white', letterSpacing: '0.1em' }}>
                 PICK YOUR PLAYERS
